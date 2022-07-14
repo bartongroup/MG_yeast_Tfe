@@ -90,4 +90,56 @@ plot_tfe <- function(idxstats, meta, x_var = "strain") {
     scale_colour_manual(values = okabe_ito_palette) +
     scale_y_continuous(trans = "sqrt", breaks = c(0, 1, 5, 10, 20, 50, 100) * 1000, labels = scales::comma) +
     labs(x = "Time / replicate", y = "Normalised cound per Tfe reference")
- }
+}
+
+
+normalise_to_wt <- function(set) {
+  nrm <- set$dat %>% 
+    left_join(set$metadata, by = "sample") %>% 
+    filter(strain == "WT") %>% 
+    group_by(gene_id, time) %>% 
+    summarise(mean_wt = mean(count_norm) + 0.5) %>% 
+    ungroup(time) %>% 
+    mutate(normfac = mean_wt / mean(mean_wt)) %>% 
+    ungroup()
+  set$dat <- set$dat %>% 
+    left_join(set$metadata %>% select(sample, time), by = "sample") %>% 
+    left_join(nrm, by = c("gene_id", "time")) %>% 
+    mutate(count_wt = count_norm / normfac, .after = count_norm) %>% 
+    select(-c(time, mean_wt, normfac))
+  set
+}
+
+
+plot_gene_time <- function(set, genes, val = "count_norm", max_points = 100) {
+  dat <- set$dat %>% 
+    filter(gene_id %in% genes) 
+  n <- nrow(dat)
+  if (n == 0) return(NULL)
+  
+  d <- dat %>% 
+    left_join(set$metadata, by = "sample") %>% 
+    mutate(value = get(val))
+  
+  pd <- ggplot2::position_dodge(width = 0.4)
+  
+  th <- theme_bw() + theme(
+    text = element_text(size = 18),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank(),
+    legend.position = "none"
+  )
+  
+  
+  ntp <- length(unique(d$time))
+  g <- ggplot() +
+    th +
+    scale_shape_identity() +  # necessary for shape mapping
+    facet_grid(strain ~ .) +
+    geom_point(data = d, aes(x = time, y = value, fill = replicate, shape = 21), colour = "grey40", position = pd, size = 4) +
+    geom_vline(data = tibble(x = seq(0.5, ntp + 0.5, 1)), aes(xintercept = x), colour = "grey80", alpha = 0.5) +
+    viridis::scale_fill_viridis(discrete = TRUE, option = "cividis") +
+    labs(x = "Time (h)", y = val) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.06)), limits = c(0, NA))
+  g
+}

@@ -16,7 +16,7 @@ LOGFC_LIMIT <- 1
 FDR_LIMIT <- 0.01
 
 CONTRASTS_0 <- c("Tfe2_0-WT_0", "Tfe1_0-WT_0", "Tfe1_0-Tfe2_0")
-CONTRAST_SELECTION <- c("Tfe1_0-WT_0", "Tfe1_30-WT_30", "Tfe1_60-WT_60", "Tfe2_0-WT_0", "Tfe2_30-WT_30", "Tfe2_60-WT_60")
+CONTRAST_SELECTION <- c("Tfe1_0-WT_0", "Tfe1_30-WT_30", "Tfe1_60-WT_60", "Tfe2_0-WT_0", "Tfe2_30-WT_30", "Tfe2_60-WT_60", "WT_30-WT_0", "WT_60-WT_0")
 
 
 SAMPLE_RENAME <- tribble(

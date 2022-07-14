@@ -197,7 +197,8 @@ normalize_star_counts <- function(set, gene_info) {
   set %>% 
     normalise_to_library(gene_info, libsize) %>% 
     #normalise_edger() %>% 
-    regularised_log()
+    regularised_log() %>% 
+    normalise_to_wt()
 }
 
 
