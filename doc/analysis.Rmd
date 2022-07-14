@@ -364,13 +364,14 @@ tar_read(fig_fg_example_go_0032543)
 ### Tfe2 vs WT at 60h
 
 ```{r read_fg}
-tar_load(fg_tfe2_wt_60)
+tar_load(fg_sel)
 ```
 
 ### GO terms
 
-```{r fg_go}
-fg_go <- fg_tfe2_wt_60$go %>% 
+```{r fg_go, cache=FALSE}
+fg_go <- fg_sel$go %>% 
+  filter(contrast == "Tfe2_60-WT_60") %>% 
   select(term, term_name, pval, padj, NES, size) %>% 
   filter(padj < 0.01) %>% 
   mutate(across(where(is.numeric), ~signif(.x, 3)))
@@ -379,8 +380,9 @@ DT::datatable(fg_go)
 
 ### KEGG pathways
 
-```{r fg_kg}
-fg_kg <- fg_tfe2_wt_60$kg %>% 
+```{r fg_kg, cache=FALSE}
+fg_kg <- fg_sel$kg %>% 
+  filter(contrast == "Tfe2_60-WT_60") %>% 
   select(term, term_name, pval, padj, NES, size) %>% 
   filter(padj < 0.01) %>% 
   mutate(across(where(is.numeric), ~signif(.x, 3)))
