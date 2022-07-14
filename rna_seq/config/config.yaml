@@ -1,0 +1,13 @@
+ensembl_dir: ftp://ftp.ensembl.org/pub/release-
+
+fastq_screen_config: fastq_screen.conf
+
+reference:
+    genome_base: http://sgd-archive.yeastgenome.org/sequence/strains/W303/W303_SGD_2015_JRIU00000000
+    genome_file: W303_SGD_2015_JRIU00000000.fsa
+    gff_file: W303_JRIU00000000_SGD.gff
+    
+window_size: 50000
+
+samples: config/samples.txt
+ 

@@ -1,0 +1,187 @@
+### EDGER EXPLORER
+
+libDir <- "/cluster/gjb_lab/mgierlinski/R_shiny/library/4.1"
+if (dir.exists(libDir)) .libPaths(libDir)
+
+library(shiny)
+library(tidyverse)
+library(DT)
+source("../shiny_func.R")
+
+css <- "table{font-size: 11px; background-color: #EAF5FF}"
+
+### Read data ###
+
+data <- read_rds("../data_edger.rds")
+contrasts <- unique(data$res$contrast)
+
+gene2name <- set_names(data$genes$gene_name, data$genes$gene_id)
+
+max_points <- 500
+
+
+
+#######################################################################
+
+ui <- shinyUI(fluidPage(
+  
+  tags$style(css),
+  
+  titlePanel("Tfe1 and Tfe2: differential expression"),
+
+  fluidRow(
+    column(12,
+      fluidRow(
+        column(4, 
+          radioButtons("contrastSel", "Contrast:", choices = contrasts, inline = TRUE),
+          radioButtons("plotType", "Plot type:", choices = c("Volcano", "MA"), inline = TRUE),
+          plotOutput("mainPlot", height = "480px", width = "100%", brush = "plot_brush", hover = "plot_hover")
+        ),
+        column(3,
+          radioButtons("intensityScale", "Intesity scale:", choices = c("lin" = "", "log" = "log"), inline = TRUE),
+          plotOutput("genePlot", height = "400px",width = "100%")
+        ),
+        column(5,
+          p("Gene list"),
+          div(style = 'height: 200px; overflow-y: scroll', tableOutput("geneInfo")),
+          br(),
+          radioButtons("enrichment", "Enrichment:", choices = c("GO", "KEGG"), inline = TRUE),
+          div(style = 'height: 400px; overflow-y: scroll', tableOutput("Enrichment")),
+        )
+      ),
+      fluidRow(
+        DT::dataTableOutput("allGeneTable")
+      )
+    )
+  )
+)
+)
+
+
+########################################################################################
+
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+  
+  getXYData <- function() {
+    if (input$plotType == "Gradient") {
+      xy_data <- data$grad %>% 
+        mutate(x = Insulin, y = BI, FDR = 0)
+    } else if (input$plotType == "Volcano") {
+      xy_data <- data$res %>% 
+        filter(contrast == input$contrastSel) %>% 
+        mutate(x = logFC, y = -log10(PValue))
+    } else if (input$plotType == "MA") {
+      xy_data <- data$res %>% 
+        filter(contrast == input$contrastSel) %>% 
+        mutate(x = logCPM, y = logFC)
+    }
+    xy_data
+  }
+  
+  selectGene <- function(max_hover = 1) {
+    xy_data <- getXYData()
+    sel <- NULL
+    tab_idx <- as.numeric(input$allGeneTable_rows_selected)
+    if (!is.null(input$plot_brush)) {
+      brushed <- na.omit(brushedPoints(xy_data, input$plot_brush))
+      sel <- brushed$gene_id
+    } else if (!is.null(input$plot_hover)) {
+      near <- nearPoints(xy_data, input$plot_hover, threshold = 20, maxpoints = max_hover)
+      sel <- near$gene_id
+    } else if (length(tab_idx) > 0) {
+      sel <- xy_data[tab_idx, ] %>% pull(gene_id)
+    }
+    return(sel)
+  }
+  
+  output$geneInfo <- renderTable({
+    xy_data <- getXYData()
+    sel <- selectGene()
+    df <- NULL
+    if (!is.null(sel) && length(sel) >= 1 && length(sel) <= max_points) {
+      df <- xy_data %>%
+        filter(gene_id %in% sel) %>% 
+        arrange(gene_name)
+      if (input$plotType == "Gradient") {
+        df <- df %>% select(gene_name, gene_biotype, description)
+      } else {
+        df <- df %>% select(gene_name, gene_biotype, description, FDR)
+      }
+    } else if (length(sel) > max_points) {
+      df <- data.frame(Error = paste0('only ',max_points,' points can be selected.'))
+    }
+    df
+  })
+
+  enrichmentTable <- function(terms) {
+    xy_data <- getXYData()
+    sel <- NULL
+    fe <- NULL
+    if (!is.null(input$plot_brush)) {
+      brushed <- na.omit(brushedPoints(xy_data, input$plot_brush))
+      sel <- brushed$gene_id
+      n <- length(sel)
+      if (n > 0 && n <= max_points) {
+        all_genes <- xy_data$gene_id
+        fe <- sh_enrichment(all_genes, sel, terms, gene2name)
+      } else if (n > 0) {
+        fe <- data.frame(Error = paste0('only ',max_points,' points can be selected.'))
+      }
+    }
+    fe
+  }
+  
+  output$Enrichment <- renderTable({
+    if (input$enrichment == "GO") {
+      d <- data$terms$go
+    } else if (input$enrichment == "Reactome") {
+      d <- data$terms$re
+    } else if (input$enrichment == "KEGG") {
+      d <- data$terms$kg
+    }
+    enrichmentTable(d)
+  })
+  
+  
+  output$genePlot <- renderPlot({
+    sel <- selectGene()
+    if (!is.null(sel) && length(sel) > 0 && length(sel) <= max_points) {
+      sh_plot_genes(data$dat, data$metadata, sel, input$intensityScale, input$contrastSel)
+    }
+  })
+  
+  output$mainPlot <- renderPlot({
+    xy_data <- getXYData()
+    tab_idx <- as.numeric(input$allGeneTable_rows_selected)
+    
+    if (input$plotType == "Volcano") {
+      g <- sh_plot_volcano(xy_data)
+    } else if (input$plotType == "MA") {
+      g <- sh_plot_ma(xy_data)
+    } else if (input$plotType == "Gradient") {
+      g <- sh_plot_gradient(xy_data, gradients)
+    }
+    if (length(tab_idx) >= 1) {
+      g <- g + geom_point(data = xy_data[tab_idx, ], colour = "red", size = 2)
+    }
+    g
+  })
+
+  output$allGeneTable <- DT::renderDataTable({
+    if (input$plotType == "Gradient") {
+      d <- getXYData() %>%
+        select(gene_name, gene_biotype, all_of(gradients), description) %>% 
+        mutate_if(is.numeric, ~signif(.x, 3))
+    } else {
+      d <- getXYData() %>%
+        select(gene_name, gene_biotype, logFC, FDR, description) %>% 
+        mutate_if(is.numeric, ~signif(.x, 3))
+    }
+    DT::datatable(d, class = 'cell-border strip hover', selection = "single", rownames = FALSE)
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)

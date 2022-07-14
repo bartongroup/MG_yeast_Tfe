@@ -1,0 +1,1 @@
+rsync -avm --include='*/' --include-from=rsync_include.txt --exclude='*' cluster:/cluster/gjb_lab/mgierlinski/projects/yeast_tfe/rna_seq .
