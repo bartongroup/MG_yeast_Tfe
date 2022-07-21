@@ -46,7 +46,7 @@ add_links <- function(fg_lst) {
   list(
     go = fg_lst$go %>% mutate(term = glue::glue('<a href=http://amigo.geneontology.org/amigo/term/{term}>{term}</a>')),
     # gs = fg_lst$gs %>% mutate(term = glue::glue('<a href=http://amigo.geneontology.org/amigo/term/{term}>{term}</a>')),
-    # re = fg_lst$re %>% mutate(term = glue::glue('<a href=https://reactome.org/content/detail/{term}>{term}</a>')),
+    re = fg_lst$re %>% mutate(term = glue::glue('<a href=https://reactome.org/content/detail/{term}>{term}</a>')),
     kg = fg_lst$kg %>% mutate(term = glue::glue('<a href=https://www.genome.jp/pathway/{term}>{term}</a>'))
   )
 }

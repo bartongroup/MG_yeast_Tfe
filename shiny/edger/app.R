@@ -19,7 +19,8 @@ gene2name <- set_names(data$genes$gene_name, data$genes$gene_id)
 
 max_points <- 500
 
-
+all_genes <- data$genes$gene_id %>% unique()
+all_terms <- sh_prepare_for_enrichment(data, c("go", "re", "kg"))
 
 #######################################################################
 
@@ -27,7 +28,7 @@ ui <- shinyUI(fluidPage(
   
   tags$style(css),
   
-  titlePanel("Tfe1 and Tfe2: differential expression"),
+  titlePanel("Tfe1/Tfe2 toxin expression in yeast: differential expression"),
 
   fluidRow(
     column(12,
@@ -45,7 +46,7 @@ ui <- shinyUI(fluidPage(
           p("Gene list"),
           div(style = 'height: 200px; overflow-y: scroll', tableOutput("geneInfo")),
           br(),
-          radioButtons("enrichment", "Enrichment:", choices = c("GO", "KEGG"), inline = TRUE),
+          radioButtons("enrichment", "Enrichment:", choices = c("GO" = "go", "Reactome" = "re", "KEGG" = "kg"), inline = TRUE),
           div(style = 'height: 400px; overflow-y: scroll', tableOutput("Enrichment")),
         )
       ),
@@ -62,7 +63,12 @@ ui <- shinyUI(fluidPage(
 
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
+server <- function(input, output, session) {
+  
+  # Prevents RStudio from crashing when Shiny window closed manually
+  session$onSessionEnded(function() {
+    stopApp()
+  })
   
   getXYData <- function() {
     if (input$plotType == "Gradient") {
@@ -124,8 +130,7 @@ server <- function(input, output) {
       sel <- brushed$gene_id
       n <- length(sel)
       if (n > 0 && n <= max_points) {
-        all_genes <- xy_data$gene_id
-        fe <- sh_enrichment(all_genes, sel, terms, gene2name)
+        fe <- sh_functional_enrichment(all_genes, sel, terms, gene2name)
       } else if (n > 0) {
         fe <- data.frame(Error = paste0('only ',max_points,' points can be selected.'))
       }
@@ -134,13 +139,7 @@ server <- function(input, output) {
   }
   
   output$Enrichment <- renderTable({
-    if (input$enrichment == "GO") {
-      d <- data$terms$go
-    } else if (input$enrichment == "Reactome") {
-      d <- data$terms$re
-    } else if (input$enrichment == "KEGG") {
-      d <- data$terms$kg
-    }
+    d <- all_terms[[input$enrichment]]
     enrichmentTable(d)
   })
   

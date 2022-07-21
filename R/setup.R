@@ -9,6 +9,7 @@ ENSEMBL_DATASET <- "scerevisiae_gene_ensembl"
 ENSEMBL_VERSION <- "106"
 KEGG_SPECIES <- "sce"
 GO_SPECIES <- "sgd"
+REACTOME_SPECIES <- "Saccharomyces cerevisiae"
 
 EXAMPLE <- "WT_0_1"
 

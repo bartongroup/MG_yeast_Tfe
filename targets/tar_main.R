@@ -7,9 +7,9 @@ targets_main <- function() {
     tar_target(bm_gene_lengths, biomart_fetch_gene_lengths(mart, gns$gene_id)),
     tar_target(bm_genes, gns %>% left_join(select(bm_gene_lengths, -chr), by = "gene_id")),
     tar_target(go_terms, go_fetch_go(GO_SPECIES)),
-    # tar_target(re_terms, fetch_reactome(mart, star$genes$gene_id)),  # no reactome genes for yeast
+    tar_target(re_terms, fetch_reactome(REACTOME_SPECIES, bm_genes)),
     tar_target(kg_terms, get_kegg(species = KEGG_SPECIES, bm_genes = bm_genes, convert_ncbi = FALSE)),
-    tar_target(all_terms, list(go = go_terms, kg = kg_terms))
+    tar_target(all_terms, list(go = go_terms, re = re_terms, kg = kg_terms))
   )
 
   # directories and metadata

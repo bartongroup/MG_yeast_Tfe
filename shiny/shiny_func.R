@@ -103,17 +103,62 @@ sh_plot_genes <- function(dat, meta, genes, scale, max_points = 100) {
   g
 }
 
-sh_enrichment <- function(genes_all, genes_sel, term_data, gene2name = NULL,
-                                 min_count = 3, sig_limit = 0.05) {
+
+
+
+# create a few structure for fast selection in enrichment
+sh_prepare_for_enrichment <- function(data, universes = c("go", "re", "kg")) {
+  genes_all <- data$genes$gene_id %>% unique()
   
-  gene2term <- term_data$gene2term
-  term_info <- term_data$terms
-  
-  # select only terms represented in our gene set
-  gene2term <- gene2term %>% filter(gene_id %in% genes_all)
+  map(universes, function(u) {
+    term_data <- data$terms[[u]]
+    if (!is.null(term_data)) {
+      # Check for missing term descriptions
+      mis_term <- setdiff(term_data$gene2term$term_id, term_data$terms$term_id)
+      if (length(mis_term) > 0) {
+        dummy <- tibble(
+          term_id = mis_term,
+          term_name = rep(NA_character_, length(mis_term))
+        )
+        term_data$terms <- 
+          bind_rows(term_data$terms, dummy)
+      }
+      
+      # List to select term info
+      term_info <- term_data$terms %>%
+        rowwise() %>%
+        group_split() %>%
+        set_names(term_data$terms$term_id)
+      
+      # gene-term tibble
+      gene_term <- term_data$gene2term %>% 
+        # mutate(gene_id = toupper(gene_id)) %>% 
+        filter(gene_id %in% genes_all)
+      
+      # Another named list for selection
+      term2gene <- gene_term %>%
+        group_by(term_id) %>%
+        summarise(genes = list(gene_id)) %>%
+        deframe()
+      
+      list(
+        term_info = term_info,
+        gene_term = gene_term,
+        term2gene = term2gene
+      )
+    }
+  }) %>% 
+    set_names(universes)
+}
+
+
+
+# New version, needs preparation (see above)
+sh_functional_enrichment <- function(genes_all, genes_sel, term_data, gene2name = NULL,
+                                     min_count = 2, sig_limit = 0.05) {
   
   # all terms present in the selection
-  terms <- gene2term %>% 
+  terms <- term_data$gene_term %>% 
     filter(gene_id %in% genes_sel) %>% 
     pull(term_id) %>% 
     unique()
@@ -124,15 +169,16 @@ sh_enrichment <- function(genes_all, genes_sel, term_data, gene2name = NULL,
   Nuni <- length(genes_all)
   
   # empty line for missing terms
-  na_term <- term_info %>% slice(1) %>% mutate_all(~NA)
+  na_term <- term_data$term_info[[1]] %>% mutate_all(~NA_character_)
   
   res <- map_dfr(terms, function(term) {
-    info <- term_info %>% filter(term_id == term)
+    info <- term_data$term_info[[term]]
     # returns NAs if no term found
-    if(nrow(info) == 0) info <- na_term %>% mutate(term_id = term)
+    if (nrow(info) == 0) info <- na_term %>% mutate(term_id = term)
     
     # all genes with the term
-    tgenes <- gene2term %>% filter(term_id == term) %>% pull(gene_id)
+    tgenes <- term_data$term2gene[[term]]
+    
     # genes from selection with the term
     tgenes_sel <- intersect(tgenes, genes_sel)
     
@@ -140,11 +186,14 @@ sh_enrichment <- function(genes_all, genes_sel, term_data, gene2name = NULL,
     nsel <- length(tgenes_sel)
     
     expected <- nuni * Nsel / Nuni
-    fish <- matrix(c(nsel, nuni - nsel, Nsel - nsel, Nuni + nsel - Nsel - nuni), nrow = 2)
-    ft <- fisher.test(fish, alternative = "greater")
-    p <- as.numeric(ft$p.value)
+    # fish <- matrix(c(nsel, nuni - nsel, Nsel - nsel, Nuni + nsel - Nsel - nuni), nrow = 2)
+    # ft <- fisher.test(fish, alternative = "greater")
+    # p <- as.numeric(ft$p.value)
     
-    if(!is.null(gene2name)) tgenes_sel <- gene2name[tgenes_sel] %>% unname()
+    # Hypergeometric function much fater than fisher.test
+    p <- 1 - phyper(nsel - 1, nuni, Nuni - nuni, Nsel)
+    
+    if (!is.null(gene2name)) tgenes_sel <- gene2name[tgenes_sel] %>% unname()
     
     bind_cols(
       info,
@@ -153,7 +202,7 @@ sh_enrichment <- function(genes_all, genes_sel, term_data, gene2name = NULL,
         sel = nsel,
         expect = expected,
         enrich = nsel / expected,
-        ids = paste(tgenes_sel, collapse = ","),
+        ids = paste(tgenes_sel, collapse = ", "),
         P = p
       )
     )

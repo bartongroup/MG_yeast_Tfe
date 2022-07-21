@@ -92,7 +92,7 @@ parse_idxstats <- function(paths, meta) {
   path <- paths$chrcount
   map2_dfr(meta$raw_sample, meta$sample, function(rsam, sam) {
     sfile <- file.path(path, glue::glue("{rsam}.txt"))
-    if(file.exists(sfile)) {
+    if (file.exists(sfile)) {
     read_tsv(sfile, col_names = c("chr", "length", "count", "unmapped"), show_col_types = FALSE) %>% 
       add_column(raw_sample = rsam, sample = sam)
     }
@@ -273,7 +273,7 @@ star_strand <- function(paths, meta, suffix = ".txt", prop.limit = 0.8) {
     mutate(r1 = first / unstranded, r2 = second / unstranded) %>% 
     mutate(strand = if_else(r1 > prop.limit, "first", if_else(r2 > prop.limit, "second", "unstranded")))
   ms <- m %>% distinct(strand)
-  if(nrow(ms) == 1) {
+  if (nrow(ms) == 1) {
     return(ms$strand)
   } else {
     print("Different stranding detected")

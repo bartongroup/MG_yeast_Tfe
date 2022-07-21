@@ -25,9 +25,9 @@ ui <- shinyUI(fluidPage(
   
   #tags$style(css),
   
-  titlePanel("Insulin BACE1: gene set enrichment"),
+  titlePanel("Tfe1/Tfe2 toxin expression in yeast: gene set enrichment"),
 
-  radioButtons("terms", "Functional terms", choiceNames=c("GO",  "KEGG"), choiceValues=c("go",  "kg"), inline=TRUE),
+  radioButtons("terms", "Functional terms", choices = c("GO" = "go", "Reactome" = "re", "KEGG" = "kg"), inline = TRUE),
   radioButtons("contrast", "Contrast:", choices = contrasts, inline = TRUE),
 
   fluidRow(
