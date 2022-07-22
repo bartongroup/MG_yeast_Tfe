@@ -14,15 +14,11 @@ css <- "table{font-size: 11px; background-color: #EAF5FF}"
 
 ### Read data ###
 
-data <- read_rds("../data_edger.rds")
-contrasts <- unique(data$de$contrast)
+data <- sh_read_all_data("../data")
+initial_contrasts <- unique(data$de$sel$contrast) %>% as.character()
 
-gene2name <- set_names(data$genes$gene_name, data$genes$gene_id)
+max_points <- 1000
 
-max_points <- 500
-
-all_genes <- data$genes$gene_id %>% unique()
-all_terms <- sh_prepare_for_enrichment(data, c("go", "re", "kg"))
 
 #######################################################################
 
@@ -36,27 +32,28 @@ ui <- shinyUI(fluidPage(
     column(12,
       fluidRow(
         column(4,
+          radioButtons("method", "Method:", choices = c("Pairwise" = "sel", "Full model" = "fi", "Tfe correlation" = "tfe"), inline = TRUE),
           conditionalPanel(
-            condition = "input.plotType != 'Tfe correlation'",
-            radioButtons("contrastSel", "Contrast:", choices = contrasts, inline = TRUE) 
+            condition = "input.method != 'tfe'",
+            radioButtons("contrast", "Contrast:", choices = initial_contrasts, inline = TRUE),
+            radioButtons("plot_type", "Plot type:", choices = c("Volcano" = "vol", "MA" = "ma"), inline = TRUE)
           ),
-          radioButtons("plotType", "Plot type:", choices = c("Volcano", "MA", "Tfe correlation"), inline = TRUE),
-          plotOutput("mainPlot", height = "480px", width = "100%", brush = "plot_brush", hover = "plot_hover")
+          plotOutput("main_plot", height = "480px", width = "100%", brush = "plot_brush", hover = "plot_hover")
         ),
         column(3,
-          radioButtons("intensityScale", "Intesity scale:", choices = c("lin" = "", "log" = "log"), inline = TRUE),
-          plotOutput("genePlot", height = "400px",width = "100%")
+          radioButtons("intensity_scale", "Intesity scale:", choices = c("lin" = "", "log" = "log"), inline = TRUE),
+          plotOutput("gene_plot", height = "400px",width = "100%")
         ),
         column(5,
           p("Gene list"),
-          div(style = 'height: 200px; overflow-y: scroll', tableOutput("geneInfo")),
+          div(style = 'height: 200px; overflow-y: scroll', tableOutput("gene_info")),
           br(),
           radioButtons("enrichment", "Enrichment:", choices = c("GO" = "go", "Reactome" = "re", "KEGG" = "kg"), inline = TRUE),
-          div(style = 'height: 400px; overflow-y: scroll', tableOutput("Enrichment") %>% withSpinner(color = "#0dc5c1", type = 5, size = 0.5)),
+          div(style = 'height: 400px; overflow-y: scroll', tableOutput("enrichment") %>% withSpinner(color = "#0dc5c1", type = 5, size = 0.5)),
         )
       ),
       fluidRow(
-        DT::dataTableOutput("allGeneTable")
+        DT::dataTableOutput("all_gene_table")
       )
     )
   )
@@ -75,26 +72,44 @@ server <- function(input, output, session) {
     stopApp()
   })
   
-  getXYData <- function() {
-    if (input$plotType == "Tfe correlation") {
-      xy_data <- data$tfe %>% 
+  get_contrasts <- reactive({
+    if (input$method != 'tfe') {
+      data$de[[input$method]]$contrast %>% 
+        as.character() %>% 
+        unique()
+    } else {
+      NULL
+    }
+  })
+  
+  get_de <- reactive({
+    data$de[[input$method]] %>% 
+      filter(contrast == input$contrast)
+  })
+  
+  observeEvent(input$method, {
+    freezeReactiveValue(input, "contrast")
+    updateRadioButtons(session = session, inputId = "contrast", choices = get_contrasts())
+  })
+  
+  get_xy_data <- function() {
+    if (input$plot_type == "tfe") {
+      xy_data <- data$tfe_cor %>% 
         mutate(x = atanh(corTfe1), y = atanh(corTfe2), FDR = 0)
-    } else if (input$plotType == "Volcano") {
-      xy_data <- data$de %>% 
-        filter(contrast == input$contrastSel) %>% 
+    } else if (input$plot_type == "vol") {
+      xy_data <- get_de() %>% 
         mutate(x = logFC, y = -log10(PValue))
-    } else if (input$plotType == "MA") {
-      xy_data <- data$de %>% 
-        filter(contrast == input$contrastSel) %>% 
+    } else if (input$plot_type == "MA") {
+      xy_data <- get_de()  %>% 
         mutate(x = logCPM, y = logFC)
     }
     xy_data
   }
   
-  selectGene <- function(max_hover = 1) {
-    xy_data <- getXYData()
+  select_gene <- function(max_hover = 1) {
+    xy_data <- get_xy_data()
     sel <- NULL
-    tab_idx <- as.numeric(input$allGeneTable_rows_selected)
+    tab_idx <- as.numeric(input$all_gene_table_rows_selected)
     if (!is.null(input$plot_brush)) {
       brushed <- brushedPoints(xy_data, input$plot_brush)
       sel <- brushed$gene_id
@@ -107,15 +122,15 @@ server <- function(input, output, session) {
     return(sel)
   }
   
-  output$geneInfo <- renderTable({
-    xy_data <- getXYData()
-    sel <- selectGene()
+  output$gene_info <- renderTable({
+    xy_data <- get_xy_data()
+    sel <- select_gene()
     df <- NULL
     if (!is.null(sel) && length(sel) >= 1 && length(sel) <= max_points) {
       df <- xy_data %>%
         filter(gene_id %in% sel) %>% 
         arrange(gene_name)
-      if (input$plotType == "Gradient") {
+      if (input$plot_type == "tfe") {
         df <- df %>% select(gene_name, gene_biotype, description)
       } else {
         df <- df %>% select(gene_name, gene_biotype, description, FDR)
@@ -126,8 +141,8 @@ server <- function(input, output, session) {
     df
   })
 
-  enrichmentTable <- function(terms) {
-    xy_data <- getXYData()
+  enrichment_table <- function(terms) {
+    xy_data <- get_xy_data()
     sel <- NULL
     fe <- NULL
     if (!is.null(input$plot_brush)) {
@@ -135,7 +150,7 @@ server <- function(input, output, session) {
       sel <- brushed$gene_id
       n <- length(sel)
       if (n > 0 && n <= max_points) {
-        fe <- sh_functional_enrichment(all_genes, sel, terms, gene2name)
+        fe <- sh_functional_enrichment(all_genes, sel, terms, data$gene2name)
       } else if (n > 0) {
         fe <- data.frame(Error = paste0('only ',max_points,' points can be selected.'))
       }
@@ -143,28 +158,28 @@ server <- function(input, output, session) {
     fe
   }
   
-  output$Enrichment <- renderTable({
-    d <- all_terms[[input$enrichment]]
-    enrichmentTable(d)
+  output$enrichment <- renderTable({
+    d <- data$terms[[input$enrichment]]
+    enrichment_table(d)
   })
   
   
-  output$genePlot <- renderPlot({
-    sel <- selectGene()
+  output$gene_plot <- renderPlot({
+    sel <- select_gene()
     if (!is.null(sel) && length(sel) > 0 && length(sel) <= max_points) {
-      sh_plot_genes(data$dat, data$metadata, sel, input$intensityScale, input$contrastSel)
+      sh_plot_genes(data$star, sel, input$intensity_scale)
     }
   })
   
-  output$mainPlot <- renderPlot({
-    xy_data <- getXYData()
-    tab_idx <- as.numeric(input$allGeneTable_rows_selected)
+  output$main_plot <- renderPlot({
+    xy_data <- get_xy_data()
+    tab_idx <- as.numeric(input$all_gene_table_rows_selected)
     
-    if (input$plotType == "Volcano") {
+    if (input$plot_type == "vol") {
       g <- sh_plot_volcano(xy_data)
-    } else if (input$plotType == "MA") {
+    } else if (input$plot_type == "ma") {
       g <- sh_plot_ma(xy_data)
-    } else if (input$plotType == "Tfe correlation") {
+    } else if (input$plot_type == "tfe") {
       g <- sh_plot_tfe(xy_data)
     }
     if (length(tab_idx) >= 1) {
@@ -173,13 +188,13 @@ server <- function(input, output, session) {
     g
   })
 
-  output$allGeneTable <- DT::renderDataTable({
-    if (input$plotType == "Tfe correlation") {
-      d <- getXYData() %>%
-        select(gene_name, description) %>% 
+  output$all_gene_table <- DT::renderDataTable({
+    if (input$plot_type == "tfe") {
+      d <- get_xy_data() %>%
+        select(gene_name, corTfe1,corTfe2, description) %>% 
         mutate_if(is.numeric, ~signif(.x, 3))
     } else {
-      d <- getXYData() %>%
+      d <- get_xy_data() %>%
         select(gene_name, gene_biotype, logFC, FDR, description) %>% 
         mutate_if(is.numeric, ~signif(.x, 3))
     }
@@ -189,3 +204,7 @@ server <- function(input, output, session) {
 
 # Run the application
 shinyApp(ui = ui, server = server)
+
+
+# For testing
+# input <- list(method = "fi", plot_type = "vol", contrast = "strainTfe2", enrichment = "go", intensity_scale = "lin")

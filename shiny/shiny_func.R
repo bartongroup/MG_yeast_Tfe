@@ -34,7 +34,7 @@ sh_plot_ma <- function(d, alpha = 0.05, title = NULL) {
 
 sh_plot_tfe <- function(d) {
   brkn <- c(0, 0.5, 0.8, 0.9, 0.95, 0.99)
-  brkn <- c(-brkn, brkn[2:length(brks)]) %>% sort()
+  brkn <- c(-brkn, brkn[2:length(brkn)]) %>% sort()
   brks <- atanh(brkn)
   ggplot(d, aes(x = x, y = y)) +
     theme_classic() +
@@ -47,23 +47,25 @@ sh_plot_tfe <- function(d) {
 }
 
 
-sh_plot_genes <- function(dat, meta, genes, scale, max_points = 100) {
-  dat <- dat %>% 
-    filter(gene_id %in% genes) 
+sh_plot_genes <- function(set, genes, y_scale, max_points = 100, what = "count_norm") {
+  dat <- set$dat %>% 
+    filter(gene_id %in% genes)
   n <- nrow(dat)
   if (n == 0) return(NULL)
   
   dat <- dat %>% 
-    left_join(meta, by = c("sample", "group", "replicate"))
+    mutate(val = get(what)) %>% 
+    left_join(set$metadata, by = "sample")
   
-  if (scale == "log") {
-    dat$rpkm <- log10(dat$rpkm)
+  if (y_scale == "log") {
+    dat <- dat %>% 
+      mutate(val = log10(val))
   }
   d <- dat %>%
     group_by(sample) %>% 
     summarise(
-      m = mean(rpkm, na.rm = TRUE),
-      se = sd(rpkm, na.rm = TRUE) / sqrt(sum(!is.na(rpkm))),
+      m = mean(val, na.rm = TRUE),
+      se = sd(val, na.rm = TRUE) / sqrt(sum(!is.na(val))),
       group = first(group),
       replicate = first(replicate) %>% as_factor(),
       time = first(time),
@@ -92,11 +94,11 @@ sh_plot_genes <- function(dat, meta, genes, scale, max_points = 100) {
     geom_vline(data = tibble(x = seq(0.5, ntp + 0.5, 1)), aes(xintercept = x), colour = "grey80", alpha = 0.5) +
     viridis::scale_fill_viridis(discrete = TRUE, option = "cividis") +
     xlab("Time (h)")
-  if (scale == "log") {
-    g <- g + labs(y = "Log RPKM")
+  if (y_scale == "log") {
+    g <- g + labs(y = "Log count")
   } else {
     g <- g +
-      labs(y = "RPKM") +
+      labs(y = "Count") +
       scale_y_continuous(expand = expansion(mult = c(0, 0.06)), limits = c(0, NA))
   }
   if (n > 1) {
@@ -106,52 +108,6 @@ sh_plot_genes <- function(dat, meta, genes, scale, max_points = 100) {
 }
 
 
-
-
-# create a few structure for fast selection in enrichment
-sh_prepare_for_enrichment <- function(data, universes = c("go", "re", "kg")) {
-  genes_all <- data$genes$gene_id %>% unique()
-  
-  map(universes, function(u) {
-    term_data <- data$terms[[u]]
-    if (!is.null(term_data)) {
-      # Check for missing term descriptions
-      mis_term <- setdiff(term_data$gene2term$term_id, term_data$terms$term_id)
-      if (length(mis_term) > 0) {
-        dummy <- tibble(
-          term_id = mis_term,
-          term_name = rep(NA_character_, length(mis_term))
-        )
-        term_data$terms <- 
-          bind_rows(term_data$terms, dummy)
-      }
-      
-      # List to select term info
-      term_info <- term_data$terms %>%
-        rowwise() %>%
-        group_split() %>%
-        set_names(term_data$terms$term_id)
-      
-      # gene-term tibble
-      gene_term <- term_data$gene2term %>% 
-        # mutate(gene_id = toupper(gene_id)) %>% 
-        filter(gene_id %in% genes_all)
-      
-      # Another named list for selection
-      term2gene <- gene_term %>%
-        group_by(term_id) %>%
-        summarise(genes = list(gene_id)) %>%
-        deframe()
-      
-      list(
-        term_info = term_info,
-        gene_term = gene_term,
-        term2gene = term2gene
-      )
-    }
-  }) %>% 
-    set_names(universes)
-}
 
 
 
@@ -218,3 +174,37 @@ sh_functional_enrichment <- function(genes_all, genes_sel, term_data, gene2name 
 }
 
 
+
+
+
+# adds gene info and conditions to main data set
+sh_prepare_main_data <- function(data) {
+  data$dat %>%
+    left_join(bm_genes, by = "gene_id") %>%
+    left_join(meta, by = "sample") %>% 
+    mutate(group = factor(group, levels = levels(star$metadata$group))) %>% 
+    select(gene_id, gene_name, description, sample, group, replicate, count, count_norm, rpkm) %>% 
+    mutate(gene_name = if_else(is.na(gene_name), gene_id, gene_name))
+}
+
+
+
+sh_read_all_data <- function(path) {
+  bm_genes <- read_rds(file.path(path, "bm_genes.rds"))
+  star <- read_rds(file.path(path, "star.rds"))
+  de <- read_rds(file.path(path, "de.rds"))
+  terms <- read_rds(file.path(path, "terms.rds"))
+  tfe_cor <- read_rds(file.path(path, "tfe_cor.rds"))
+  
+  all_genes <- star$genes$gene_id %>% unique()
+  
+  list(
+    all_genes = all_genes,
+    gen2name = set_names(star$genes$gene_id, star$genes$gene_name),
+    bm_genes = bm_genes,
+    star = star,
+    de = de,
+    terms = terms,
+    tfe_cor = tfe_cor
+  )
+}

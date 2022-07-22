@@ -116,12 +116,8 @@ targets_main <- function() {
   )
   
   prepare_for_shiny <- list(
-    tar_target(shiny_edger, shiny_data_edger(star, edger_comb, tfe_cor, bm_genes, all_terms)),
     tar_target(fg_list, add_links(fg_sel)),
-    tar_target(shiny_gsea, shiny_fgsea(star, edger_comb, bm_genes, fg_list, fg_tfe)),
-    
-    tar_target(save_shiny_edger, write_rds(shiny_edger, "shiny/data_edger.rds", compress = "xz")),
-    tar_target(save_shiny_gsea, write_rds(shiny_gsea, "shiny/data_gsea.rds", compress = "xz"))
+    tar_target(sav_shiny, save_data_for_shiny(bm_genes, star, edger_sel, edger_fi, tfe_cor, all_terms, fg_list, fg_tfe))
   )
   
   make_tables <- list(

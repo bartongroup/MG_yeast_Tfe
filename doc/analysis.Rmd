@@ -412,10 +412,10 @@ tar_read(fig_sporulation)
 
 ### Downloads
 
- - [Normalised counts from all samples](http://www.compbio.dundee.ac.uk/user/mgierlinski/yeat_tfe/tab/normalised_counts.tsv)
- - [Differential expression pairwise](http://www.compbio.dundee.ac.uk/user/mgierlinski/pbrm/tab/de_pairwise.tsv)
- - [Differential expression by time and strain](http://www.compbio.dundee.ac.uk/user/mgierlinski/pbrm/tab/de_factors.tsv)
- - [Correlation between genes and Tfe](http://www.compbio.dundee.ac.uk/user/mgierlinski/pbrm/tab/tfe_correlation.tsv)
+ - [Normalised counts from all samples](https://www.compbio.dundee.ac.uk/user/mgierlinski/yeast_tfe/tab/normalised_counts.tsv)
+ - [Differential expression pairwise](https://www.compbio.dundee.ac.uk/user/mgierlinski/yeast_tfe/tab/de_pairwise.tsv)
+ - [Differential expression by time and strain](https://www.compbio.dundee.ac.uk/user/mgierlinski/yeast_tfe/tab/de_factors.tsv)
+ - [Correlation between genes and Tfe](https://www.compbio.dundee.ac.uk/user/mgierlinski/yeast_tfe/tab/tfe_correlation.tsv)
  
  
 ### Interactive data explorer

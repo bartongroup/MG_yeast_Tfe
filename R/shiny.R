@@ -1,12 +1,82 @@
-shiny_data_edger <- function(star, edger,tfe_cor, bm_genes, all_terms) {
+# create a few structures for fast selection in enrichment
+prepare_for_enrichment <- function(all_terms, all_genes, universes = c("go", "re", "kg")) {
+  map(universes, function(u) {
+    term_data <- all_terms[[u]]
+    if (!is.null(term_data)) {
+      # Check for missing term descriptions
+      mis_term <- setdiff(term_data$gene2term$term_id, term_data$terms$term_id)
+      if (length(mis_term) > 0) {
+        dummy <- tibble(
+          term_id = mis_term,
+          term_name = rep(NA_character_, length(mis_term))
+        )
+        term_data$terms <- 
+          bind_rows(term_data$terms, dummy)
+      }
+      
+      # List to select term info
+      term_info <- term_data$terms %>%
+        rowwise() %>%
+        group_split() %>%
+        set_names(term_data$terms$term_id)
+      
+      # gene-term tibble
+      gene_term <- term_data$gene2term %>% 
+        # mutate(gene_id = toupper(gene_id)) %>% 
+        filter(gene_id %in% all_genes)
+      
+      # Another named list for selection
+      term2gene <- gene_term %>%
+        group_by(term_id) %>%
+        summarise(genes = list(gene_id)) %>%
+        deframe()
+      
+      list(
+        term_info = term_info,
+        gene_term = gene_term,
+        term2gene = term2gene
+      )
+    }
+  }) %>% 
+    set_names(universes)
+}
+
+
+
+write_rds_name <- function(obj) {
+  path <- file.path("shiny", "data")
+  if (!dir.exists(path)) dir.create(path)
+  obj_name <- deparse(substitute(obj))
+  file_name <- file.path(path, str_glue("{obj_name}.rds"))
+  write_rds(obj, file_name, compress = "xz")
+}
+
+save_data_for_shiny <- function(bm_genes, star, edger_sel, edger_fi, tfe_cor,
+                                all_terms, fg, fg_tfe) {
+  de <- list(sel = edger_sel, fi = edger_fi)
+  all_genes <- star$genes$gene_id %>% unique()
+  terms <- prepare_for_enrichment(all_terms, all_genes)
+  
+  write_rds_name(bm_genes)
+  write_rds_name(star)
+  write_rds_name(de)
+  write_rds_name(tfe_cor)
+  write_rds_name(terms)
+  write_rds_name(fg)
+  write_rds_name(fg_tfe)
+}
+
+
+shiny_data_edger <- function(star, edger_sel, edger_fi, tfe_cor, bm_genes, all_terms) {
   meta <- star$metadata %>% mutate(replicate = as_factor(replicate))
   list(
     metadata = meta,
+    gene_info = bm_genes,
     dat = star$dat %>%
       left_join(bm_genes, by = "gene_id") %>%
       left_join(meta, by = "sample") %>% 
       mutate(group = factor(group, levels = levels(star$metadata$group))) %>% 
-      select(gene_id, gene_name, description, sample, group, replicate, count, rpkm) %>% 
+      select(gene_id, gene_name, description, sample, group, replicate, count, count_norm, rpkm) %>% 
       mutate(gene_name = if_else(is.na(gene_name), gene_id, gene_name)),
     genes = star$genes,
     de = edger %>%
