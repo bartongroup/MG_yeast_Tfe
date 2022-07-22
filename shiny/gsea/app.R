@@ -1,7 +1,7 @@
 ### GENE SET ENRICHMENT EXPLORER
 
 libDir <- "/cluster/gjb_lab/mgierlinski/R_shiny/library/4.1"
-if(dir.exists(libDir)) .libPaths(libDir)
+if (dir.exists(libDir)) .libPaths(libDir)
 
 library(shiny)
 library(tidyverse)
@@ -16,7 +16,7 @@ css <- "table{font-size: 11px; background-color: #EAF5FF}"
 ### Read data ###
 
 data <- read_rds("../data_gsea.rds")
-contrasts <- levels(data$res$contrast)
+contrasts <- unique(data$fgs$go$contrast)
 
 
 #######################################################################
@@ -38,7 +38,7 @@ ui <- shinyUI(fluidPage(
   fluidRow(
     column(3, 
       br(),
-      radioButtons("intensityScale", "Intesity scale:", choices = c("lin" = "", "log"="log"), inline = TRUE),
+      radioButtons("intensityScale", "Intesity scale:", choices = c("lin" = "", "log" = "log"), inline = TRUE),
       plotOutput("genePlot", height = "400px",width = "50%")
     ),
     column(4, br(), tableOutput("geneInfo"))
@@ -51,7 +51,12 @@ ui <- shinyUI(fluidPage(
 
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
+server <- function(input, output, session) {
+  
+  # Prevents RStudio from crashing when Shiny window closed manually
+  session$onSessionEnded(function() {
+    stopApp()
+  })
   
   getData <- reactive({
     fg <- data$fgs[[input$terms]] %>% 
@@ -70,10 +75,18 @@ server <- function(input, output) {
     r <- fg %>% 
       filter(term == trm)
     df <- NULL
-    if(nrow(r) > 0) {
+    if (nrow(r) > 0) {
       genes <- r$leading_edge[[1]]
-      df <- data$res %>% 
-        filter(gene_id %in% genes & contrast == input$contrast)
+      df <- data$de %>% 
+        filter(gene_id %in% genes)
+      ctrs <- input$contrast
+      if (input$contrast == "corTfe1") {
+        ctrs <- "strainTfe1"
+      } else if (input$contrast == "corTfe2") {
+        ctrs <- "strainTfe2"
+      }
+      df %>% 
+        filter(contrast == ctrs)
     }
   }
   
@@ -137,7 +150,7 @@ server <- function(input, output) {
     dat <- getData()
     sel <- selectGene()
     if(!is.null(sel)) {
-      d <- data$res %>% 
+      d <- data$de %>% 
         filter(gene_id %in% sel) %>% 
         mutate_if(is.numeric, ~signif(.x, 2)) %>% 
         select(logFC, logCPM, PValue, FDR, contrast)

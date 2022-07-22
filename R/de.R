@@ -89,7 +89,16 @@ de_list <- function(res, group_var, fdr, logfc, fdr_limit = 0.01, logfc_limit = 
     set_names(ks)
 }
 
-
+save_de <- function(de, file) {
+  de %>% 
+    pivot_wider(
+      id_cols = c(gene_id, gene_name, description),
+      names_from = contrast,
+      values_from = c(logFC, logCPM, PValue, FDR)
+    ) %>% 
+    mutate(across(where(is.numeric), ~signif(.x, 4))) %>% 
+    write_tsv(file)
+}
 
 
 

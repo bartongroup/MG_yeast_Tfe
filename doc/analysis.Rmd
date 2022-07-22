@@ -360,58 +360,81 @@ In contrast, a GO-term `GO:0032543`, (mitochondrial translation), has genes most
 tar_read(fig_fg_example_go_0032543)
 ```
 
+Results from GSE are available from the [gene set enrichment explorer](https://shiny.compbio.dundee.ac.uk/public/marek_yeast_tfe/gsea/).
 
-### Tfe2 vs WT at 60h
 
-```{r read_fg}
-tar_load(fg_sel) 
+## Tfe correlation
+
+Our data includes Tfe1 and Tfe2 expression estimated from reads mapping to the respective sequences. We can use it to find genes whose expression correlates with Tfe1 and Tfe2. The correlation was calculated from normalised count, across all samples. Each gene was correlated with Tfe1 and Tfe2 expression profiles. The figure below show the correlation of each gene with Tfe1 plotted versus correlation with Tfe2.
+
+```{r fig_tfe_cor, fig.width=4, fig.height=4}
+tar_read(fig_tfe_cor)
 ```
 
-### GO terms
 
-```{r fg_go, cache=FALSE}
-fg_go <- fg_sel$go %>% 
-  filter(contrast == "Tfe2_60-WT_60") %>% 
-  select(term, term_name, pval, padj, NES, size) %>% 
-  filter(padj < 0.01) %>% 
-  mutate(across(where(is.numeric), ~signif(.x, 3)))
-DT::datatable(fg_go)
+### Example
+
+Here is an example of how it works. This is gene SPS2, highly correlated with Tfe2:
+
+```{r fig_tfe_sps2, fig.width=6, fig.height=6}
+tar_read(fig_tfe_sps2)
 ```
 
-### Reactome pathways
+and here is an example of a gene anti-correlated with Tfe2:
 
-```{r fg_re, cache=FALSE}
-fg_re <- fg_sel$re %>% 
-  filter(contrast == "Tfe2_60-WT_60") %>% 
-  select(term, term_name, pval, padj, NES, size) %>% 
-  filter(padj < 0.01) %>% 
-  mutate(across(where(is.numeric), ~signif(.x, 3)))
-DT::datatable(fg_re)
+```{r fig_tfe_xpt1, fig.width=6, fig.height=6}
+tar_read(fig_tfe_xpt1)
 ```
 
-### KEGG pathways
 
-```{r fg_kg, cache=FALSE}
-fg_kg <- fg_sel$kg %>% 
-  filter(contrast == "Tfe2_60-WT_60") %>% 
-  select(term, term_name, pval, padj, NES, size) %>% 
-  filter(padj < 0.01) %>% 
-  mutate(across(where(is.numeric), ~signif(.x, 3)))
-DT::datatable(fg_kg)
+### Gene set enrichment
+
+The correlation can be used to perform gene set enrichment, if there are functional terms or pathways for which the correlation is high, they will be identified by the analysis. Let's have a look again at the GO-term `GO:0030476`, ascospore wall assembly, using correlation with Tfe2.
+
+
+```{r fig_tfe_fg_example_go_0030476, fig.width=5, fig.height=3}
+tar_read(fig_tfe_fg_example_go_0030476)
 ```
+
+
+Full results are available from the [gene set enrichment explorer](https://shiny.compbio.dundee.ac.uk/public/marek_yeast_tfe/gsea/).
+
+## Sporulation
+
+Sporulation comes up as one of the most important processes related to Tfe2 (gene set enrichment). Here are top 24 genes (according to logFC from `strainTfe2` coefficient in 'strain and time' differential expression) related to the GO term `GO:0030435`, sporulation resulting in formation of a cellular spore.
+
+```{r fig_sporulation, fig.width=10, fig.height=12}
+tar_read(fig_sporulation)
+```
+
 
 ## Resources
 
 ### Downloads
 
- - [Normalised counts from all samples](http://www.compbio.dundee.ac.uk/user/mgierlinski/pbrm/tab/counts_norm.tsv)
- - [Log-fold change to time 0](http://www.compbio.dundee.ac.uk/user/mgierlinski/pbrm/tab/fc.tsv)
- - [Differential expression PAG](http://www.compbio.dundee.ac.uk/user/mgierlinski/pbrm/tab/de_pag.tsv)
- - [Differntial expression DMSO and ET905](http://www.compbio.dundee.ac.uk/user/mgierlinski/pbrm/tab/de_0.tsv)
+ - [Normalised counts from all samples](http://www.compbio.dundee.ac.uk/user/mgierlinski/yeat_tfe/tab/normalised_counts.tsv)
+ - [Differential expression pairwise](http://www.compbio.dundee.ac.uk/user/mgierlinski/pbrm/tab/de_pairwise.tsv)
+ - [Differential expression by time and strain](http://www.compbio.dundee.ac.uk/user/mgierlinski/pbrm/tab/de_factors.tsv)
+ - [Correlation between genes and Tfe](http://www.compbio.dundee.ac.uk/user/mgierlinski/pbrm/tab/tfe_correlation.tsv)
  
+ 
+### Interactive data explorer
+
+#### Introduction
+
+These on-line tools allow to explore all the differential expression and gene set enrichment results. The contrast selection in the tool contains all combined 'contrasts', which include:
+
+ - contrasts between selected conditions (e.g. `Tfe2_60-WT_60`)
+ - coefficients in factor design, that is effect of time (`time30`, `time60`) and mutant (`strainTfe1`, `strainTfe2`) and (for GSE only) correlation of Tfe and gene expression (`corTfe1`, `corTfe2`).
+ 
+#### Links
+
+  - [Differential expression](https://shiny.compbio.dundee.ac.uk/public/marek_yeast_tfe/edger/)
+  - [Gene set enrichment](https://shiny.compbio.dundee.ac.uk/public/marek_yeast_tfe/gsea/)
+
 ### Code
 
- - [R code on GitHub](https://github.com/bartongroup/MG_PBRM_TTSeq)
+ - [R code on GitHub](https://github.com/bartongroup/MG_yeast_Tfe)
  
  
 ## Session info

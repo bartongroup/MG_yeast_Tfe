@@ -3,7 +3,9 @@
 libDir <- "/cluster/gjb_lab/mgierlinski/R_shiny/library/4.1"
 if (dir.exists(libDir)) .libPaths(libDir)
 
+library(scales)
 library(shiny)
+library(shinycssloaders)
 library(tidyverse)
 library(DT)
 source("../shiny_func.R")
@@ -13,7 +15,7 @@ css <- "table{font-size: 11px; background-color: #EAF5FF}"
 ### Read data ###
 
 data <- read_rds("../data_edger.rds")
-contrasts <- unique(data$res$contrast)
+contrasts <- unique(data$de$contrast)
 
 gene2name <- set_names(data$genes$gene_name, data$genes$gene_id)
 
@@ -33,9 +35,12 @@ ui <- shinyUI(fluidPage(
   fluidRow(
     column(12,
       fluidRow(
-        column(4, 
-          radioButtons("contrastSel", "Contrast:", choices = contrasts, inline = TRUE),
-          radioButtons("plotType", "Plot type:", choices = c("Volcano", "MA"), inline = TRUE),
+        column(4,
+          conditionalPanel(
+            condition = "input.plotType != 'Tfe correlation'",
+            radioButtons("contrastSel", "Contrast:", choices = contrasts, inline = TRUE) 
+          ),
+          radioButtons("plotType", "Plot type:", choices = c("Volcano", "MA", "Tfe correlation"), inline = TRUE),
           plotOutput("mainPlot", height = "480px", width = "100%", brush = "plot_brush", hover = "plot_hover")
         ),
         column(3,
@@ -47,7 +52,7 @@ ui <- shinyUI(fluidPage(
           div(style = 'height: 200px; overflow-y: scroll', tableOutput("geneInfo")),
           br(),
           radioButtons("enrichment", "Enrichment:", choices = c("GO" = "go", "Reactome" = "re", "KEGG" = "kg"), inline = TRUE),
-          div(style = 'height: 400px; overflow-y: scroll', tableOutput("Enrichment")),
+          div(style = 'height: 400px; overflow-y: scroll', tableOutput("Enrichment") %>% withSpinner(color = "#0dc5c1", type = 5, size = 0.5)),
         )
       ),
       fluidRow(
@@ -71,15 +76,15 @@ server <- function(input, output, session) {
   })
   
   getXYData <- function() {
-    if (input$plotType == "Gradient") {
-      xy_data <- data$grad %>% 
-        mutate(x = Insulin, y = BI, FDR = 0)
+    if (input$plotType == "Tfe correlation") {
+      xy_data <- data$tfe %>% 
+        mutate(x = atanh(corTfe1), y = atanh(corTfe2), FDR = 0)
     } else if (input$plotType == "Volcano") {
-      xy_data <- data$res %>% 
+      xy_data <- data$de %>% 
         filter(contrast == input$contrastSel) %>% 
         mutate(x = logFC, y = -log10(PValue))
     } else if (input$plotType == "MA") {
-      xy_data <- data$res %>% 
+      xy_data <- data$de %>% 
         filter(contrast == input$contrastSel) %>% 
         mutate(x = logCPM, y = logFC)
     }
@@ -91,7 +96,7 @@ server <- function(input, output, session) {
     sel <- NULL
     tab_idx <- as.numeric(input$allGeneTable_rows_selected)
     if (!is.null(input$plot_brush)) {
-      brushed <- na.omit(brushedPoints(xy_data, input$plot_brush))
+      brushed <- brushedPoints(xy_data, input$plot_brush)
       sel <- brushed$gene_id
     } else if (!is.null(input$plot_hover)) {
       near <- nearPoints(xy_data, input$plot_hover, threshold = 20, maxpoints = max_hover)
@@ -126,7 +131,7 @@ server <- function(input, output, session) {
     sel <- NULL
     fe <- NULL
     if (!is.null(input$plot_brush)) {
-      brushed <- na.omit(brushedPoints(xy_data, input$plot_brush))
+      brushed <- brushedPoints(xy_data, input$plot_brush)
       sel <- brushed$gene_id
       n <- length(sel)
       if (n > 0 && n <= max_points) {
@@ -159,8 +164,8 @@ server <- function(input, output, session) {
       g <- sh_plot_volcano(xy_data)
     } else if (input$plotType == "MA") {
       g <- sh_plot_ma(xy_data)
-    } else if (input$plotType == "Gradient") {
-      g <- sh_plot_gradient(xy_data, gradients)
+    } else if (input$plotType == "Tfe correlation") {
+      g <- sh_plot_tfe(xy_data)
     }
     if (length(tab_idx) >= 1) {
       g <- g + geom_point(data = xy_data[tab_idx, ], colour = "red", size = 2)
@@ -169,9 +174,9 @@ server <- function(input, output, session) {
   })
 
   output$allGeneTable <- DT::renderDataTable({
-    if (input$plotType == "Gradient") {
+    if (input$plotType == "Tfe correlation") {
       d <- getXYData() %>%
-        select(gene_name, gene_biotype, all_of(gradients), description) %>% 
+        select(gene_name, description) %>% 
         mutate_if(is.numeric, ~signif(.x, 3))
     } else {
       d <- getXYData() %>%

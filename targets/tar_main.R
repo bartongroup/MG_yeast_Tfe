@@ -48,7 +48,7 @@ targets_main <- function() {
   
   selections <- list(
     tar_target(gene2name, set_names(star$genes$gene_name, star$genes$gene_id)),
-    tar_target(edger_sel, edger %>% filter(contrast %in% CONTRAST_SELECTION))
+    tar_target(edger_sel, edger %>% filter(contrast %in% CONTRAST_SELECTION) %>% droplevels())
   )
 
   # read count properties
@@ -75,6 +75,8 @@ targets_main <- function() {
     tar_target(edger_fi, edger_de_f(star, gns, formula = "~ strain * time", fdr_limit = FDR_LIMIT, logfc_limit = LOGFC_LIMIT)),
     tar_target(de_genes, edger_f %>% filter(sig) %>% pull(gene_id) %>% unique()),
     
+    tar_target(edger_comb, bind_rows(edger_sel, edger_f)),
+    
     # upset
     tar_target(upset_list_edger_fc1, de_list(edger, "contrast", "FDR", "logFC")),
     tar_target(upset_list_deseq_fc1, de_list(deseq, "contrast", "FDR", "logFC")),
@@ -94,24 +96,45 @@ targets_main <- function() {
   )
   
   set_enrichment <- list(
-    tar_target(fg_sel, fgsea_all_terms(edger_sel, all_terms)),
-    
+    tar_target(fg_sel, fgsea_all_terms(edger_comb, all_terms, infix = "de")),
+    tar_target(fg_tfe, fgsea_all_terms(tfe_cor, all_terms, valvar = "correlation", infix = "tfe")),
+
     tar_target(fig_fg_example_go_0030476, plot_fgsea_enrichment("GO:0030476", edger_sel %>% filter(contrast == "Tfe2_60-WT_60"), go_terms)),
-    tar_target(fig_fg_example_go_0032543, plot_fgsea_enrichment("GO:0032543", edger_sel %>% filter(contrast == "Tfe2_60-WT_60"), go_terms))
+    tar_target(fig_fg_example_go_0032543, plot_fgsea_enrichment("GO:0032543", edger_sel %>% filter(contrast == "Tfe2_60-WT_60"), go_terms)),
+    
+    tar_target(fig_tfe_fg_example_go_0030476, plot_fgsea_enrichment("GO:0030476", tfe_cor %>% filter(contrast == "corTfe2"), go_terms, valvar = "correlation")),
+    
+    tar_target(fig_sporulation, plot_term_genes(star, go_terms, "GO:0030435", edger_f, ctr = "strainTfe2"))
+  )
+  
+  tfe_correlation <- list(
+    tar_target(tfe, get_tfe(star, idxstats)),
+    tar_target(tfe_cor, tfe_correlation(star, tfe)),
+    tar_target(fig_tfe_cor, plot_tfe_correlation(tfe_cor)),
+    tar_target(fig_tfe_sps2, plot_gene_tfe(star, tfe, "YDR522C")),
+    tar_target(fig_tfe_xpt1, plot_gene_tfe(star, tfe, "YJR133W"))
   )
   
   prepare_for_shiny <- list(
-    tar_target(shiny_edger, shiny_data_edger(star, edger, bm_genes, all_terms)),
+    tar_target(shiny_edger, shiny_data_edger(star, edger_comb, tfe_cor, bm_genes, all_terms)),
     tar_target(fg_list, add_links(fg_sel)),
-    tar_target(shiny_gsea, shiny_fgsea(star, edger, bm_genes, fg_list)),
+    tar_target(shiny_gsea, shiny_fgsea(star, edger_comb, bm_genes, fg_list, fg_tfe)),
     
     tar_target(save_shiny_edger, write_rds(shiny_edger, "shiny/data_edger.rds", compress = "xz")),
     tar_target(save_shiny_gsea, write_rds(shiny_gsea, "shiny/data_gsea.rds", compress = "xz"))
-    
+  )
+  
+  make_tables <- list(
+    tar_target(tab_tfe_cor, make_tf_cor_table(tfe_cor, bm_genes)),
+    tar_target(sav_tfe_cor, write_tsv(tab_tfe_cor, "tab/tfe_correlation.tsv")),
+    tar_target(sav_counts, save_count_data(star, "tab/normalised_counts.tsv")),
+    tar_target(sav_de_p, save_de(edger_sel, "tab/de_pairwise.tsv")),
+    tar_target(sav_de_f, save_de(edger_f, "tab/de_factors.tsv"))
   )
   
   info <- list(
-    tar_target(edger_version, packageVersion("edgeR"))
+    tar_target(edger_version, packageVersion("edgeR")),
+    tar_target(fgsea_version, packageVersion("fgsea"))
   )
   
   c(
@@ -123,7 +146,9 @@ targets_main <- function() {
     count_properties,
     differential_expression,
     set_enrichment,
+    tfe_correlation,
     prepare_for_shiny,
+    make_tables,
     info
   )
 }

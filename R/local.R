@@ -143,3 +143,80 @@ plot_gene_time <- function(set, genes, val = "count_norm", max_points = 100) {
     scale_y_continuous(expand = expansion(mult = c(0, 0.06)), limits = c(0, NA))
   g
 }
+
+get_tfe <- function(set, idxs) {
+  w <- idxs %>% 
+    filter(chr %in% c("Tfe1", "Tfe2")) %>% 
+    left_join(set$mapped_normfac, by = "sample") %>% 
+    mutate(count_norm = count / normfac) 
+  w %>% 
+    pivot_wider(id_cols = sample, names_from = chr, values_from = count) %>% 
+    column_to_rownames("sample") %>%
+    as.matrix() %>% 
+    DESeq2::rlog() %>%
+    as_tibble(rownames = "sample") %>% 
+    pivot_longer(-sample, names_to = "strain", values_to = "rlog") %>% 
+    left_join(select(w, sample, strain = chr, count, count_norm), by = c("sample", "strain"))
+}
+
+
+tfe_correlation <- function(set, tfe, what = "count_norm") {
+  tfe_tab <- tfe %>%
+    mutate(value = get(what)) %>% 
+    pivot_wider(id_cols = sample, names_from = strain, values_from = value) %>% 
+    column_to_rownames("sample") %>%
+    as.matrix()
+  data_tab <- dat2mat(set$dat, what)
+  cor(t(data_tab), tfe_tab) %>% 
+    as_tibble(rownames = "gene_id") %>% 
+    pivot_longer(-gene_id, names_to = "contrast", values_to = "correlation") %>% 
+    mutate(contrast = recode(contrast, Tfe1 = "corTfe1", Tfe2 = "corTfe2"))
+}
+
+
+plot_tfe_correlation <- function(tfe_cor, tr = "atanh") {
+  brks <- c(0, 0.5, 0.8, 0.9, 0.95, 0.99)
+  brks <- c(-brks, brks)
+  tfe_cor %>% 
+    pivot_wider(id_cols = gene_id, names_from = contrast, values_from = correlation) %>% 
+  ggplot(aes(x = corTfe1, y = corTfe2)) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    geom_point(size = 0.8) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    geom_vline(xintercept = 0, colour = "grey50") +
+    scale_x_continuous(trans = tr, breaks = brks) +
+    scale_y_continuous(trans = tr, breaks = brks) +
+    labs(x = "Correlation with Tfe1", y = "Correlation with Tfe2")
+}
+
+plot_gene_tfe <- function(set, tfe, gid, what = "count_norm") {
+  set$dat %>% 
+    filter(gene_id == gid) %>% 
+    left_join(set$genes, by = "gene_id") %>% 
+    select(sample, strain = gene_name, rlog, count, count_norm) %>% 
+    bind_rows(tfe) %>% 
+    mutate(value = get(what)) %>% 
+    mutate(
+      sample = factor(sample, levels = set$metadata$sample),
+      strain = as_factor(strain)
+    ) %>% 
+  ggplot(aes(x = sample, y = value)) +
+    theme_bw() +
+    theme(
+      panel.grid = element_blank(),
+      axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)
+    ) +
+    geom_hline(yintercept = 0, colour = "grey50")  +
+    geom_segment(aes(xend = sample, yend = 0), colour = "grey80") +
+    geom_point() +
+    facet_wrap(~ strain, ncol = 1, scales = "free_y") +
+    labs(x = NULL, y = what)
+}
+
+make_tf_cor_table <- function(tfe_cor, bm_genes) {
+  tfe_cor %>% 
+    mutate(correlation = signif(correlation, 3)) %>% 
+    pivot_wider(id_cols = gene_id, names_from = contrast, values_from = correlation) %>% 
+    left_join(bm_genes %>% select(gene_id, gene_name, gene_biotype, description))
+}

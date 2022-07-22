@@ -477,6 +477,17 @@ plot_gene_groups <- function(set, gid, val = "count_norm", log.scale = FALSE, nc
 }
 
 
+plot_term_genes <- function(set, terms, trm, de, ctr, n_top = 24, n_col = 4, sign = 1, val = "count_norm") {
+  all_gids <- terms$term2gene[[trm]]
+  gids <- de %>% 
+    filter(contrast == ctr & gene_id %in% all_gids) %>% 
+    arrange(-sign * logFC) %>% 
+    pull(gene_id) %>% 
+    unique() %>% 
+    head(n_top)
+  plot_gene_groups(set, gids, val, ncol = n_col)
+}
+
 plot_fc_comparison <- function(res, groupvar = "contrast") {
   mx <- max(abs(res$logFC))
   d <- res %>% 

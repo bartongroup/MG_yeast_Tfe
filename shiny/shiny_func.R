@@ -30,18 +30,20 @@ sh_plot_ma <- function(d, alpha = 0.05, title = NULL) {
 }
 
 
-sh_plot_gradient <- function(d, gradients) {
+
+
+sh_plot_tfe <- function(d) {
+  brkn <- c(0, 0.5, 0.8, 0.9, 0.95, 0.99)
+  brkn <- c(-brkn, brkn[2:length(brks)]) %>% sort()
+  brks <- atanh(brkn)
   ggplot(d, aes(x = x, y = y)) +
     theme_classic() +
-    theme_classic() +
-    theme(
-      panel.grid = element_blank(),
-      text = element_text(size = 18)
-    ) +
-    geom_hline(yintercept = 0, colour = "grey70") +
-    geom_vline(xintercept = 0, colour = "grey70") +
-    geom_point(size = 0.2) +
-    labs(x = gradients[1], y = gradients[2])
+    geom_point(size = 0.8) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    geom_vline(xintercept = 0, colour = "grey50") +
+    scale_x_continuous(breaks = brks, labels = brkn) +
+    scale_y_continuous(breaks = brks, labels = brkn) +
+    labs(x = "Correlation with Tfe1", y = "Correlation with Tfe2")
 }
 
 

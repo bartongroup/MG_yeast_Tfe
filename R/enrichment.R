@@ -206,11 +206,11 @@ fgsea_cache <- function(d, terms, file, valvar = "logFC", groupvar = "contrast")
   fg
 }
 
-fgsea_all_terms <- function(d, all_terms, valvar = "logFC", groupvar = "contrast") {
+fgsea_all_terms <- function(d, all_terms, valvar = "logFC", groupvar = "contrast", infix = "") {
   nms <- names(all_terms)
   map(nms, function(trm) {
-    cat(str_glue("  Computing fgsea for {trm}\n\n"))
-    cache_file <- file.path("cache", str_glue("fgsea_{trm}.rds"))
+    cat(str_glue("  Computing fgsea for {infix} {trm}\n\n"))
+    cache_file <- file.path("cache", str_glue("fgsea_{infix}_{trm}.rds"))
     fgsea_cache(d, all_terms[[trm]], cache_file, valvar, groupvar)
   }) %>%
     set_names(nms)
