@@ -45,7 +45,11 @@ We are looking at the toxicity of the bacterial Type6 secreted toxins Tfe1 and T
  
 Timepoint 0 should be pretty similar between the WT, Tfe1 and Tfe2 samples as no toxin expression, but we do know from experience that there is some leakage to the promoter, so it could be that we see some background activity.
 At time-points 30 and 60 we would hope to see initial and maybe adaptive responses to the toxins Tfe1 and Tfe2, but also adaptation to the additional carbon source galactose (time point 0 samples are grown in raffinose only, whilst later timepoints are grown in raffinose + galactose).
- 
+
+
+```{r echo=FALSE, out.width='70%', fig.cap="From Trunk at al. 2019"}
+knitr::include_graphics('image/tfe1_tfe2.png')
+```
 
 ## Experiment
 
