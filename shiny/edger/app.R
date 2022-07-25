@@ -5,7 +5,7 @@ if (dir.exists(libDir)) .libPaths(libDir)
 
 library(scales)
 library(shiny)
-library(shinycssloaders)
+#library(shinycssloaders)
 library(tidyverse)
 library(DT)
 source("../shiny_func.R")
@@ -14,7 +14,7 @@ css <- "table{font-size: 11px; background-color: #EAF5FF}"
 
 ### Read data ###
 
-data <- sh_read_all_data("../data")
+data <- sh_read_edger_data("../data")
 initial_contrasts <- unique(data$de$sel$contrast) %>% as.character()
 
 max_points <- 1000
@@ -35,7 +35,7 @@ ui <- shinyUI(fluidPage(
           radioButtons("method", "Method:", choices = c("Pairwise" = "sel", "Full model" = "fi", "Tfe correlation" = "tfe"), inline = TRUE),
           conditionalPanel(
             condition = "input.method != 'tfe'",
-            radioButtons("contrast", "Contrast:", choices = initial_contrasts, inline = TRUE),
+            selectInput("contrast", "Contrast:", choices = initial_contrasts),
             radioButtons("plot_type", "Plot type:", choices = c("Volcano" = "vol", "MA" = "ma"), inline = TRUE)
           ),
           plotOutput("main_plot", height = "480px", width = "100%", brush = "plot_brush", hover = "plot_hover")
@@ -49,7 +49,7 @@ ui <- shinyUI(fluidPage(
           div(style = 'height: 200px; overflow-y: scroll', tableOutput("gene_info")),
           br(),
           radioButtons("enrichment", "Enrichment:", choices = c("GO" = "go", "Reactome" = "re", "KEGG" = "kg"), inline = TRUE),
-          div(style = 'height: 400px; overflow-y: scroll', tableOutput("enrichment") %>% withSpinner(color = "#0dc5c1", type = 5, size = 0.5)),
+          div(style = 'height: 400px; overflow-y: scroll', tableOutput("enrichment")),
         )
       ),
       fluidRow(
@@ -72,36 +72,43 @@ server <- function(input, output, session) {
     stopApp()
   })
   
+  # Available contrasts
   get_contrasts <- reactive({
+    ctrs <- NULL
     if (input$method != 'tfe') {
-      data$de[[input$method]]$contrast %>% 
+      ctrs <- data$de[[input$method]]$contrast %>% 
         as.character() %>% 
         unique()
-    } else {
-      NULL
     }
+    ctrs
   })
-  
-  get_de <- reactive({
-    data$de[[input$method]] %>% 
-      filter(contrast == input$contrast)
-  })
-  
+
+  # Update contrasts based on method
   observeEvent(input$method, {
     freezeReactiveValue(input, "contrast")
-    updateRadioButtons(session = session, inputId = "contrast", choices = get_contrasts())
+    updateSelectInput(session = session, inputId = "contrast", choices = get_contrasts())
   })
   
+  
+  get_de <- function() {
+    ctr <- input$contrast
+    data$de[[input$method]] %>% 
+      filter(contrast == ctr)
+  }
+  
   get_xy_data <- function() {
-    if (input$plot_type == "tfe") {
+    if (input$method == "tfe") {
       xy_data <- data$tfe_cor %>% 
-        mutate(x = atanh(corTfe1), y = atanh(corTfe2), FDR = 0)
-    } else if (input$plot_type == "vol") {
-      xy_data <- get_de() %>% 
-        mutate(x = logFC, y = -log10(PValue))
-    } else if (input$plot_type == "MA") {
-      xy_data <- get_de()  %>% 
-        mutate(x = logCPM, y = logFC)
+        mutate(x = atanh(corTfe1), y = atanh(corTfe2))
+    } else {
+      de <- get_de()
+      if (input$plot_type == "vol") {
+        xy_data <- de %>% 
+          mutate(x = logFC, y = -log10(PValue))
+      } else if (input$plot_type == "ma") {
+        xy_data <- de  %>% 
+          mutate(x = logCPM, y = logFC)
+      }
     }
     xy_data
   }
@@ -130,7 +137,7 @@ server <- function(input, output, session) {
       df <- xy_data %>%
         filter(gene_id %in% sel) %>% 
         arrange(gene_name)
-      if (input$plot_type == "tfe") {
+      if (input$method == "tfe") {
         df <- df %>% select(gene_name, gene_biotype, description)
       } else {
         df <- df %>% select(gene_name, gene_biotype, description, FDR)
@@ -150,7 +157,7 @@ server <- function(input, output, session) {
       sel <- brushed$gene_id
       n <- length(sel)
       if (n > 0 && n <= max_points) {
-        fe <- sh_functional_enrichment(all_genes, sel, terms, data$gene2name)
+        fe <- sh_functional_enrichment(all_genes, sel, terms, gene2name = data$gene2name)
       } else if (n > 0) {
         fe <- data.frame(Error = paste0('only ',max_points,' points can be selected.'))
       }
@@ -175,12 +182,14 @@ server <- function(input, output, session) {
     xy_data <- get_xy_data()
     tab_idx <- as.numeric(input$all_gene_table_rows_selected)
     
-    if (input$plot_type == "vol") {
-      g <- sh_plot_volcano(xy_data)
-    } else if (input$plot_type == "ma") {
-      g <- sh_plot_ma(xy_data)
-    } else if (input$plot_type == "tfe") {
+    if (input$method == "tfe") {
       g <- sh_plot_tfe(xy_data)
+    } else {
+      if (input$plot_type == "vol") {
+        g <- sh_plot_volcano(xy_data)
+      } else if (input$plot_type == "ma") {
+        g <- sh_plot_ma(xy_data)
+      }
     }
     if (length(tab_idx) >= 1) {
       g <- g + geom_point(data = xy_data[tab_idx, ], colour = "red", size = 2)
@@ -189,7 +198,7 @@ server <- function(input, output, session) {
   })
 
   output$all_gene_table <- DT::renderDataTable({
-    if (input$plot_type == "tfe") {
+    if (input$method == "tfe") {
       d <- get_xy_data() %>%
         select(gene_name, corTfe1,corTfe2, description) %>% 
         mutate_if(is.numeric, ~signif(.x, 3))

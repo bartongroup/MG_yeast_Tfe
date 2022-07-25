@@ -52,10 +52,13 @@ write_rds_name <- function(obj) {
 }
 
 save_data_for_shiny <- function(bm_genes, star, edger_sel, edger_fi, tfe_cor,
-                                all_terms, fg, fg_tfe) {
+                                all_terms, fg_sel, fg_fi, fg_tfe) {
   de <- list(sel = edger_sel, fi = edger_fi)
+  fg <- list(sel = fg_sel, fi = fg_fi, tfe = fg_tfe)
   all_genes <- star$genes$gene_id %>% unique()
   terms <- prepare_for_enrichment(all_terms, all_genes)
+  tfe_cor <- tfe_cor %>%
+    pivot_wider(id_cols = gene_id, names_from = contrast, values_from = correlation)
   
   write_rds_name(bm_genes)
   write_rds_name(star)
@@ -63,7 +66,6 @@ save_data_for_shiny <- function(bm_genes, star, edger_sel, edger_fi, tfe_cor,
   write_rds_name(tfe_cor)
   write_rds_name(terms)
   write_rds_name(fg)
-  write_rds_name(fg_tfe)
 }
 
 

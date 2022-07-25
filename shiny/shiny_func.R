@@ -189,22 +189,39 @@ sh_prepare_main_data <- function(data) {
 
 
 
-sh_read_all_data <- function(path) {
+sh_read_edger_data <- function(path) {
   bm_genes <- read_rds(file.path(path, "bm_genes.rds"))
   star <- read_rds(file.path(path, "star.rds"))
   de <- read_rds(file.path(path, "de.rds"))
   terms <- read_rds(file.path(path, "terms.rds"))
-  tfe_cor <- read_rds(file.path(path, "tfe_cor.rds"))
+  tfe_cor <- read_rds(file.path(path, "tfe_cor.rds")) %>% 
+    left_join(bm_genes, by = "gene_id")
   
   all_genes <- star$genes$gene_id %>% unique()
   
   list(
     all_genes = all_genes,
-    gen2name = set_names(star$genes$gene_id, star$genes$gene_name),
-    bm_genes = bm_genes,
+    gene2name = set_names(star$genes$gene_name, star$genes$gene_id),
     star = star,
     de = de,
     terms = terms,
     tfe_cor = tfe_cor
   )
+}
+
+
+sh_read_gsea_data <- function(path) {
+  bm_genes <- read_rds(file.path(path, "bm_genes.rds"))
+  star <- read_rds(file.path(path, "star.rds"))
+  terms <- read_rds(file.path(path, "terms.rds"))
+  fg <- read_rds(file.path(path, "fg.rds"))
+  de <- read_rds(file.path(path, "de.rds"))
+  
+  list(
+    star = star,
+    terms = terms,
+    fg = fg,
+    de = de
+  )
+  
 }

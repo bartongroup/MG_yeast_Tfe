@@ -96,7 +96,8 @@ targets_main <- function() {
   )
   
   set_enrichment <- list(
-    tar_target(fg_sel, fgsea_all_terms(edger_comb, all_terms, infix = "de")),
+    tar_target(fg_sel, fgsea_all_terms(edger_sel, all_terms, infix = "sel")),
+    tar_target(fg_fi, fgsea_all_terms(edger_fi, all_terms, infix = "fi")),
     tar_target(fg_tfe, fgsea_all_terms(tfe_cor, all_terms, valvar = "correlation", infix = "tfe")),
 
     tar_target(fig_fg_example_go_0030476, plot_fgsea_enrichment("GO:0030476", edger_sel %>% filter(contrast == "Tfe2_60-WT_60"), go_terms)),
@@ -117,7 +118,7 @@ targets_main <- function() {
   
   prepare_for_shiny <- list(
     tar_target(fg_list, add_links(fg_sel)),
-    tar_target(sav_shiny, save_data_for_shiny(bm_genes, star, edger_sel, edger_fi, tfe_cor, all_terms, fg_list, fg_tfe))
+    tar_target(sav_shiny, save_data_for_shiny(bm_genes, star, edger_sel, edger_fi, tfe_cor, all_terms, fg_sel, fg_fi, fg_tfe))
   )
   
   make_tables <- list(
