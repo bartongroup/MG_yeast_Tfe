@@ -157,7 +157,7 @@ server <- function(input, output, session) {
       sel <- brushed$gene_id
       n <- length(sel)
       if (n > 0 && n <= max_points) {
-        fe <- sh_functional_enrichment(all_genes, sel, terms, gene2name = data$gene2name)
+        fe <- sh_functional_enrichment(data$all_genes, sel, terms, gene2name = data$gene2name)
       } else if (n > 0) {
         fe <- data.frame(Error = paste0('only ',max_points,' points can be selected.'))
       }
