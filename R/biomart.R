@@ -24,7 +24,8 @@ biomart_fetch_genes <- function(mart, use_cache = TRUE) {
       description = str_remove(description, "\\s\\[.*\\]"),
       gene_name = na_if(gene_name, "")
     ) %>% 
-  tibble::as_tibble()
+    tibble::as_tibble() %>% 
+    dplyr::mutate(gene_name = if_else(is.na(gene_name), gene_id, gene_name))
 }
 
 biomart_fetch_proteins <- function(mart, gene_ids, use_cache = TRUE) {
