@@ -4,15 +4,15 @@ ggheatmap <- function(tab, order.col = TRUE, order.row = TRUE, dendro.line.size 
                       with.y.text = FALSE, with.x.text = TRUE, palette = "distiller",
                       max.fc = NULL) {
   
-  d <- tab %>%
-    as_tibble(rownames = "rowname") %>%
-    mutate(rowname = factor(rowname, levels = rownames(tab))) %>%
-    pivot_longer(-rowname, names_to = "variable", values_to = "value") %>%
-    mutate(variable = factor(variable, levels = colnames(tab))) %>%
+  d <- tab |>
+    as_tibble(rownames = "rowname") |>
+    mutate(rowname = factor(rowname, levels = rownames(tab))) |>
+    pivot_longer(-rowname, names_to = "variable", values_to = "value") |>
+    mutate(variable = factor(variable, levels = colnames(tab))) |>
     mutate(value = as.numeric(value))
   
   dd <- function(X) {
-    X %>% dist(method = dist.method) %>% hclust(method = clust.method) %>% as.dendrogram()
+    X |> dist(method = dist.method) |> hclust(method = clust.method) |> as.dendrogram()
   }
   
   # Cluster rows
@@ -77,7 +77,7 @@ ggheatmap <- function(tab, order.col = TRUE, order.row = TRUE, dendro.line.size 
     dendro_row <- axis_canvas(heat_plot, axis = "y", coord_flip = TRUE) +
       geom_segment(data = ggdendro::segment(dendro_data_row), aes(y = -y, x = x, xend = xend, yend = -yend), size = dendro.line.size) +
       coord_flip()
-    final_plot <- final_plot %>%
+    final_plot <- final_plot |>
       cowplot::insert_yaxis_grob(dendro_row, grid::unit(0.2, "null"), position = "left")
   }
   
@@ -85,7 +85,7 @@ ggheatmap <- function(tab, order.col = TRUE, order.row = TRUE, dendro.line.size 
     dendro_data_col <- ggdendro::dendro_data(dd.col, type = "rectangle")
     dendro_col <- cowplot::axis_canvas(heat_plot, axis = "x") +
       geom_segment(data = ggdendro::segment(dendro_data_col), aes(x = x, y = y, xend = xend, yend = yend), size = dendro.line.size)
-    final_plot <- final_plot %>%
+    final_plot <- final_plot |>
       cowplot::insert_xaxis_grob(dendro_col, grid::unit(0.2, "null"), position = "top")
   }
   

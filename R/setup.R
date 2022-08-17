@@ -36,33 +36,33 @@ SAMPLE_RENAME <- tribble(
 
 make_metadata <- function(name, sample_file, sample_rename) {
   if (name == "tfe") {
-    meta <- read_tsv(sample_file, col_names = "raw_sample", show_col_types = FALSE) %>%
-      separate(raw_sample, c("strain_id", "time", "replicate"), sep = "-", fill = "right", remove = FALSE) %>% 
+    meta <- read_tsv(sample_file, col_names = "raw_sample", show_col_types = FALSE) |>
+      separate(raw_sample, c("strain_id", "time", "replicate"), sep = "-", fill = "right", remove = FALSE) |> 
       mutate(
         mis = is.na(replicate),
         replicate = if_else(mis, time, replicate),
         time = if_else(mis, "0", time),
         strain = recode(strain_id, "165" = "Tfe2", "167" = "Tfe1")
-      ) %>% 
-      left_join(sample_rename, by = "raw_sample", suffix = c("", "_replace")) %>% 
-      mutate(scramble = !is.na(strain_replace) & (strain != strain_replace | replicate != replicate_replace)) %>% 
-      unite(raw_group, c(strain_id, time), sep = "_", remove = FALSE) %>% 
+      ) |> 
+      left_join(sample_rename, by = "raw_sample", suffix = c("", "_replace")) |> 
+      mutate(scramble = !is.na(strain_replace) & (strain != strain_replace | replicate != replicate_replace)) |> 
+      unite(raw_group, c(strain_id, time), sep = "_", remove = FALSE) |> 
       mutate(
         strain = if_else(is.na(strain_replace), strain, strain_replace),
         time = if_else(is.na(time_replace), time, time_replace),
         replicate = if_else(is.na(replicate_replace), replicate, replicate_replace)
-      ) %>% 
-      select(-ends_with("replace")) %>% 
-      unite(sample, c(strain, time, replicate), sep = "_", remove = FALSE) %>% 
-      unite(group, c(strain, time), sep = "_", remove = FALSE) %>% 
+      ) |> 
+      select(-ends_with("replace")) |> 
+      unite(sample, c(strain, time, replicate), sep = "_", remove = FALSE) |> 
+      unite(group, c(strain, time), sep = "_", remove = FALSE) |> 
       mutate(
-        strain_id = as_factor(strain_id) %>% fct_relevel(c("WT", "167")),
-        strain = as_factor(strain) %>% fct_relevel(c("WT", "Tfe1"))
-      ) %>% 
-      arrange(strain, time, replicate) %>% 
+        strain_id = as_factor(strain_id) |> fct_relevel(c("WT", "167")),
+        strain = as_factor(strain) |> fct_relevel(c("WT", "Tfe1"))
+      ) |> 
+      arrange(strain, time, replicate) |> 
       mutate(
         across(c(sample, time, replicate, group), as_factor)
-      ) %>% 
+      ) |> 
       select(raw_sample, sample, strain_id, strain, raw_group, group, time, replicate, scramble)
   }
   meta
@@ -83,6 +83,6 @@ make_dirs <- function(top_dir) {
 # these before processing.
 fix_gene_names <- function(v, suffixes = c("_W303", "_mRNA")) {
   expr <- str_c(suffixes, collapse = "|")
-  v %>% 
+  v |> 
     str_remove(expr)
 }

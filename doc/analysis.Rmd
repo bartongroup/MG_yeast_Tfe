@@ -59,11 +59,11 @@ knitr::include_graphics('image/tfe1_tfe2.png')
 ```{r metadata}
 tar_load(metadata) 
 
-metadata %>% 
-  select(strain, time, group, replicate, raw_sample, sample, scramble) %>% 
-  flextable(col_keys = c("strain", "time", "group", "replicate", "raw_sample", "sample")) %>% 
-  theme_box() %>% 
-  merge_v(j = 1:3) %>% 
+metadata |> 
+  select(strain, time, group, replicate, raw_sample, sample, scramble) |> 
+  flextable(col_keys = c("strain", "time", "group", "replicate", "raw_sample", "sample")) |> 
+  theme_box() |> 
+  merge_v(j = 1:3) |> 
   bg(i = ~ scramble == TRUE, j = 5, "wheat")
 ```
 
@@ -116,10 +116,10 @@ tar_read(fig_clustering_raw)
 By looking at both figure I came up with the following de-scrambling scheme:
 
 ```{r descram}
-metadata %>% 
-  filter(scramble) %>% 
-  select(raw_sample, strain, time, replicate, sample) %>% 
-  arrange(raw_sample) %>% 
+metadata |> 
+  filter(scramble) |> 
+  select(raw_sample, strain, time, replicate, sample) |> 
+  arrange(raw_sample) |> 
   flextable()
 ```
 
@@ -142,7 +142,7 @@ This is probably correct.
 STAR mapping results.
 
 ```{r star_properties}
-tar_read(tab_star_log) %>% rmarkdown::paged_table()
+tar_read(tab_star_log) |> rmarkdown::paged_table()
 ```
 <br>
 
@@ -293,8 +293,8 @@ Differential expression was done using *edgeR* version `r tar_read(edger_version
 ### Full pairwise comparison
 
 ```{r meta_groups}
-groups <- metadata$group %>%
-  as.character() %>% 
+groups <- metadata$group |>
+  as.character() |> 
   unique()
 ```
 

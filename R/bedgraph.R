@@ -3,7 +3,7 @@ read_bedgraphs <- function(paths, meta, window_size) {
   
   map2_dfr(meta$raw_sample, meta$sample, function(rsam, sam) {
     bfile <- file.path(path, glue::glue("{rsam}.{window_size}.bedgraph"))
-    read_tsv(bfile, col_names = c("chr", "start", "end", "score"), col_types = "ciid") %>% 
+    read_tsv(bfile, col_names = c("chr", "start", "end", "score"), col_types = "ciid") |> 
       add_column(sample = sam)
   })
 }
@@ -12,10 +12,10 @@ read_bedgraphs <- function(paths, meta, window_size) {
 
 
 plot_bedgraphs_region <- function(bg, .chr, .start, .end) {
-  bg %>%
-    mutate(pos = start / 1e6) %>% 
-    filter(chr == .chr & pos >= .start & pos <= .end) %>% 
-    select(-c(chr, start, end)) %>% 
+  bg |>
+    mutate(pos = start / 1e6) |> 
+    filter(chr == .chr & pos >= .start & pos <= .end) |> 
+    select(-c(chr, start, end)) |> 
   ggplot() +
     theme_bw() +
     theme(
@@ -30,14 +30,14 @@ plot_bedgraphs_region <- function(bg, .chr, .start, .end) {
 
 plot_bedgraph_chromosomes <- function(bg, samp, chroms=CHROMOSOMES, ymax=NULL, brks=waiver(), log_scale=FALSE, highlight_peaks=FALSE, scales="fixed") {
   bin_size <- (bg$start[2] - bg$start[1]) 
-  b <- bg %>% 
-    filter(chr %in% chroms & sample == samp) %>% 
+  b <- bg |> 
+    filter(chr %in% chroms & sample == samp) |> 
     mutate(
       chr =factor(chr, levels=chroms),
       pos = start / 1e6,
       y = score / bin_size
     )
-  if(log_scale) b <- b %>% filter(y > 0)
+  if(log_scale) b <- b |> filter(y > 0)
   
   g <- ggplot(b, aes(x = pos, y = y)) +
     theme_bw() +
@@ -58,17 +58,17 @@ plot_bedgraph_chromosomes <- function(bg, samp, chroms=CHROMOSOMES, ymax=NULL, b
   } else {
     g <-  g + scale_y_continuous(breaks = brks, trans="sqrt")
   }
-  if(highlight_peaks) g <- g + geom_point(data=b %>% filter(peak), colour="red")
+  if(highlight_peaks) g <- g + geom_point(data=b |> filter(peak), colour="red")
   g
 }
 
 
 plot_bedgraphs_depth_distribution <- function(bg, what="control") {
-  bg %>% 
-    mutate(val = !!sym(what)) %>% 
-    filter(val > 0) %>%
-    group_by(val) %>%
-    tally() %>%
+  bg |> 
+    mutate(val = !!sym(what)) |> 
+    filter(val > 0) |>
+    group_by(val) |>
+    tally() |>
   ggplot(aes(x=val, y=n)) +
     theme_bw() +
     geom_step() +
