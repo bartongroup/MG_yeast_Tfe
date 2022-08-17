@@ -35,8 +35,8 @@ fgsea_all_terms <- function(d, terms, feature_var = "gene_id", value_var = "logF
 
 
 
-plot_fgsea_enrichment <- function(term, res, terms, valvar = "logFC") {
-  lst <- terms$term2gene[[term]]
+plot_fgsea_enrichment <- function(term_id, res, terms, valvar = "logFC") {
+  lst <- terms$term2feature[[term_id]]
   rnks <- set_names(res[[valvar]], res$gene_id)
   fgsea::plotEnrichment(lst, rnks)
 }

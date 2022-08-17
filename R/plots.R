@@ -478,7 +478,7 @@ plot_gene_groups <- function(set, gid, val = "count_norm", log.scale = FALSE, nc
 
 
 plot_term_genes <- function(set, terms, trm, de, ctr, n_top = 24, n_col = 4, sign = 1, val = "count_norm") {
-  all_gids <- terms$term2gene[[trm]]
+  all_gids <- terms$term2feature[[trm]]
   gids <- de |> 
     filter(contrast == ctr & gene_id %in% all_gids) |> 
     arrange(-sign * logFC) |> 

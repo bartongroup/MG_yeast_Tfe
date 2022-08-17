@@ -41,7 +41,10 @@ edger_de <- function(set, gene_info, ctrs = NULL, normfac = NULL, id = "gene_id"
   }) |> 
     mutate(contrast = contrast |> str_replace(" - ", "-") |> str_remove_all("group") |> as_factor()) |> 
     left_join(genes, by = "gene_id") |> 
-    mutate(sig = FDR < fdr_limit & abs(logFC) > logfc_limit)
+    mutate(
+      gene_symbol = if_else(is.na(gene_symbol), gene_id, gene_symbol),
+      sig = FDR < fdr_limit & abs(logFC) > logfc_limit
+    )
 }
 
 
@@ -73,7 +76,10 @@ edger_de_f <- function(set, gene_info, formula, id = "gene_id", fdr_limit = 0.05
   }) |>
     mutate(contrast = factor(contrast, levels = coefs)) |> 
     left_join(genes, by = "gene_id") |> 
-    mutate(sig = FDR < fdr_limit & abs(logFC) > logfc_limit)
+    mutate(
+      sig = FDR < fdr_limit & abs(logFC) > logfc_limit,
+      gene_symbol = if_else(is.na(gene_symbol), gene_id, gene_symbol)
+    )
 }
 
 
