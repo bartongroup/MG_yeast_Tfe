@@ -6,6 +6,7 @@
 _targets/
 renv/
 fig/
+tab/
 doc/*
 !doc/_targets.yaml
 !doc/analysis.Rmd
