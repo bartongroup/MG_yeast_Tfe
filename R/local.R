@@ -220,3 +220,19 @@ make_tf_cor_table <- function(tfe_cor, bm_genes) {
     pivot_wider(id_cols = gene_id, names_from = contrast, values_from = correlation) |> 
     left_join(bm_genes |> select(gene_id, gene_symbol, gene_biotype, description))
 }
+
+
+
+get_sgd_data <- function(gids) {
+  api <- "https://www.yeastgenome.org/backend/locus/"
+  map_dfr(gids, function(gid) {
+    res <- httr::GET(paste0(api, gid))
+    d <- jsonlite::fromJSON(rawToChar(res$content))
+    c(
+      gene_id = gid,
+      gene_symbol = d$gene_name,
+      description = d$name_description,
+      description_full = d$description
+    )
+  })
+}
