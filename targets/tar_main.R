@@ -5,11 +5,8 @@ targets_main <- function() {
     tar_target(mart, useEnsembl(biomart = "ensembl", dataset = ENSEMBL_DATASET, version = ENSEMBL_VERSION)),
     tar_target(gns, biomart_fetch_genes(mart)),
     tar_target(bm_gene_lengths, biomart_fetch_gene_lengths(mart, gns$gene_id)),
-    tar_target(bm_genes, gns %>% left_join(select(bm_gene_lengths, -chr), by = "gene_id")),
-    tar_target(go_terms, go_fetch_go(GO_SPECIES)),
-    tar_target(re_terms, fetch_reactome(REACTOME_SPECIES, bm_genes)),
-    tar_target(kg_terms, get_kegg(species = KEGG_SPECIES, bm_genes = bm_genes, convert_ncbi = FALSE)),
-    tar_target(all_terms, list(go = go_terms, re = re_terms, kg = kg_terms))
+    tar_target(bm_genes, gns |> left_join(select(bm_gene_lengths, -chr), by = "gene_id")),
+    tar_target(fterms, get_functional_terms(bm_genes, "yeast", star$genes$gene_id))
   )
 
   # directories and metadata
@@ -47,15 +44,15 @@ targets_main <- function() {
   )
   
   selections <- list(
-    tar_target(gene2name, set_names(star$genes$gene_name, star$genes$gene_id)),
-    tar_target(edger_sel, edger %>% filter(contrast %in% CONTRAST_SELECTION) %>% droplevels())
+    tar_target(gene2name, set_names(star$genes$gene_symbol, star$genes$gene_id)),
+    tar_target(edger_sel, edger |> filter(contrast %in% CONTRAST_SELECTION) |> droplevels())
   )
 
   # read count properties
   count_properties <- list(
     tar_target(fig_sample_dist, plot_sample_distributions(star, x_breaks = c(0, 2, 4), x_lim = c(-1, 5), ncol = 7, colour_var = "strain")),
     tar_target(fig_kernels, plot_kernels(star)),
-    tar_target(png_mean_var, plot_mean_var(star) %>% gs("mean_var", 9, 9)),
+    tar_target(png_mean_var, plot_mean_var(star) |> gs("mean_var", 9, 9)),
     tar_target(fig_distance_mat, plot_distance_matrix(star)),
     tar_target(fig_clustering, plot_clustering(star)),
     tar_target(fig_clustering_raw, plot_clustering(star, sample_var = "raw_sample", colour_var = "raw_group")),
@@ -66,14 +63,14 @@ targets_main <- function() {
   # differential expression
   differential_expression <- list(
     # DE pairwise group
-    tar_target(edger, edger_de(star, gns, fdr_limit = FDR_LIMIT, logfc_limit = LOGFC_LIMIT) %>% separate_contrasts(metadata)),
+    tar_target(edger, edger_de(star, gns, fdr_limit = FDR_LIMIT, logfc_limit = LOGFC_LIMIT) |> separate_contrasts(metadata)),
     tar_target(deseq, deseq2_de(star, gns, fdr_limit = FDR_LIMIT, logfc_limit = LOGFC_LIMIT)),
     tar_target(de_cmp, edger_deseq_merge(edger, deseq)),
     
     # DE full model
     tar_target(edger_f, edger_de_f(star, gns, formula = "~ strain + time", fdr_limit = FDR_LIMIT, logfc_limit = LOGFC_LIMIT)),
     tar_target(edger_fi, edger_de_f(star, gns, formula = "~ strain * time", fdr_limit = FDR_LIMIT, logfc_limit = LOGFC_LIMIT)),
-    tar_target(de_genes, edger_f %>% filter(sig) %>% pull(gene_id) %>% unique()),
+    tar_target(de_genes, edger_f |> filter(sig) |> pull(gene_id) |> unique()),
     
     tar_target(edger_comb, bind_rows(edger_sel, edger_f)),
     
@@ -83,7 +80,7 @@ targets_main <- function() {
     tar_target(upset_list_edger_vs_deseq, de_list(de_cmp, "tool", "FDR", "logFC")),
     
     # DE figures
-    tar_target(png_volcano, plot_volcano_grid(edger, metadata) %>% gs("volcano_grid", 12, 12)),
+    tar_target(png_volcano, plot_volcano_grid(edger, metadata) |> gs("volcano_grid", 12, 12)),
     tar_target(fig_updown, plot_up_down(edger)),
     tar_target(fig_volcano_time, plot_volcano_time(edger)),
     tar_target(fig_volcano_strain, plot_volcano_strain(edger)),
@@ -96,16 +93,16 @@ targets_main <- function() {
   )
   
   set_enrichment <- list(
-    tar_target(fg_sel, fgsea_all_terms(edger_sel, all_terms, infix = "sel")),
-    tar_target(fg_fi, fgsea_all_terms(edger_fi, all_terms, infix = "fi")),
-    tar_target(fg_tfe, fgsea_all_terms(tfe_cor, all_terms, valvar = "correlation", infix = "tfe")),
+    tar_target(fg_sel, fgsea_all_terms(edger_sel, fterms)),
+    tar_target(fg_fi, fgsea_all_terms(edger_fi, fterms)),
+    tar_target(fg_tfe, fgsea_all_terms(tfe_cor, fterms, value_var = "correlation")),
 
-    tar_target(fig_fg_example_go_0030476, plot_fgsea_enrichment("GO:0030476", edger_sel %>% filter(contrast == "Tfe2_60-WT_60"), go_terms)),
-    tar_target(fig_fg_example_go_0032543, plot_fgsea_enrichment("GO:0032543", edger_sel %>% filter(contrast == "Tfe2_60-WT_60"), go_terms)),
+    tar_target(fig_fg_example_go_0030476, plot_fgsea_enrichment("GO:0030476", edger_sel |> filter(contrast == "Tfe2_60-WT_60"), fterms$go)),
+    tar_target(fig_fg_example_go_0032543, plot_fgsea_enrichment("GO:0032543", edger_sel |> filter(contrast == "Tfe2_60-WT_60"), fterms$go)),
     
-    tar_target(fig_tfe_fg_example_go_0030476, plot_fgsea_enrichment("GO:0030476", tfe_cor %>% filter(contrast == "corTfe2"), go_terms, valvar = "correlation")),
+    tar_target(fig_tfe_fg_example_go_0030476, plot_fgsea_enrichment("GO:0030476", tfe_cor |> filter(contrast == "corTfe2"), fterms$go, valvar = "correlation")),
     
-    tar_target(fig_sporulation, plot_term_genes(star, go_terms, "GO:0030435", edger_f, ctr = "strainTfe2"))
+    tar_target(fig_sporulation, plot_term_genes(star, fterms$go, "GO:0030435", edger_f, ctr = "strainTfe2"))
   )
   
   tfe_correlation <- list(
@@ -118,7 +115,7 @@ targets_main <- function() {
   
   prepare_for_shiny <- list(
     tar_target(fg_list, add_links(fg_sel)),
-    tar_target(sav_shiny, save_data_for_shiny(bm_genes, star, edger_sel, edger_fi, tfe_cor, all_terms, fg_sel, fg_fi, fg_tfe))
+    tar_target(sav_shiny, save_data_for_shiny(bm_genes, star, edger_sel, edger_fi, tfe_cor, fterms, fg_sel, fg_fi, fg_tfe))
   )
   
   make_tables <- list(

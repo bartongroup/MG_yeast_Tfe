@@ -1,13 +1,23 @@
 ### EDGER EXPLORER
 
 libDir <- "/cluster/gjb_lab/mgierlinski/R_shiny/library/4.1"
+#if (dir.exists(libDir)) {
+#  # force only one entry in libPaths to avoid conflicts
+#  assign(".lib.loc", libDir, envir = environment(.libPaths))
+#}
+
 if (dir.exists(libDir)) .libPaths(libDir)
+
+
+write(.libPaths(), stderr())
+
 
 library(scales)
 library(shiny)
 #library(shinycssloaders)
 library(tidyverse)
 library(DT)
+library(fenr)
 source("../shiny_func.R")
 
 css <- "table{font-size: 11px; background-color: #EAF5FF}"
@@ -15,7 +25,7 @@ css <- "table{font-size: 11px; background-color: #EAF5FF}"
 ### Read data ###
 
 data <- sh_read_edger_data("../data")
-initial_contrasts <- unique(data$de$sel$contrast) %>% as.character()
+initial_contrasts <- unique(data$de$sel$contrast) |> as.character()
 
 max_points <- 1000
 
@@ -48,7 +58,7 @@ ui <- shinyUI(fluidPage(
           p("Gene list"),
           div(style = 'height: 200px; overflow-y: scroll', tableOutput("gene_info")),
           br(),
-          radioButtons("enrichment", "Enrichment:", choices = c("GO" = "go", "Reactome" = "re", "KEGG" = "kg"), inline = TRUE),
+          radioButtons("enrichment", "Enrichment:", choices = c("GO" = "go", "Reactome" = "re", "KEGG" = "kg", "BioPLanet" = "bp"), inline = TRUE),
           div(style = 'height: 400px; overflow-y: scroll', tableOutput("enrichment")),
         )
       ),
@@ -76,8 +86,8 @@ server <- function(input, output, session) {
   get_contrasts <- reactive({
     ctrs <- NULL
     if (input$method != 'tfe') {
-      ctrs <- data$de[[input$method]]$contrast %>% 
-        as.character() %>% 
+      ctrs <- data$de[[input$method]]$contrast |> 
+        as.character() |> 
         unique()
     }
     ctrs
@@ -92,21 +102,21 @@ server <- function(input, output, session) {
   
   get_de <- function() {
     ctr <- input$contrast
-    data$de[[input$method]] %>% 
+    data$de[[input$method]] |> 
       filter(contrast == ctr)
   }
   
   get_xy_data <- function() {
     if (input$method == "tfe") {
-      xy_data <- data$tfe_cor %>% 
+      xy_data <- data$tfe_cor |> 
         mutate(x = atanh(corTfe1), y = atanh(corTfe2))
     } else {
       de <- get_de()
       if (input$plot_type == "vol") {
-        xy_data <- de %>% 
+        xy_data <- de |> 
           mutate(x = logFC, y = -log10(PValue))
       } else if (input$plot_type == "ma") {
-        xy_data <- de  %>% 
+        xy_data <- de  |> 
           mutate(x = logCPM, y = logFC)
       }
     }
@@ -124,7 +134,7 @@ server <- function(input, output, session) {
       near <- nearPoints(xy_data, input$plot_hover, threshold = 20, maxpoints = max_hover)
       sel <- near$gene_id
     } else if (length(tab_idx) > 0) {
-      sel <- xy_data[tab_idx, ] %>% pull(gene_id)
+      sel <- xy_data[tab_idx, ] |> pull(gene_id)
     }
     return(sel)
   }
@@ -134,13 +144,13 @@ server <- function(input, output, session) {
     sel <- select_gene()
     df <- NULL
     if (!is.null(sel) && length(sel) >= 1 && length(sel) <= max_points) {
-      df <- xy_data %>%
-        filter(gene_id %in% sel) %>% 
-        arrange(gene_name)
+      df <- xy_data |>
+        filter(gene_id %in% sel) |> 
+        arrange(gene_symbol)
       if (input$method == "tfe") {
-        df <- df %>% select(gene_name, gene_biotype, description)
+        df <- df |> select(gene_symbol, gene_biotype, description)
       } else {
-        df <- df %>% select(gene_name, gene_biotype, description, FDR)
+        df <- df |> select(gene_symbol, gene_biotype, description, FDR)
       }
     } else if (length(sel) > max_points) {
       df <- data.frame(Error = paste0('only ',max_points,' points can be selected.'))
@@ -157,7 +167,7 @@ server <- function(input, output, session) {
       sel <- brushed$gene_id
       n <- length(sel)
       if (n > 0 && n <= max_points) {
-        fe <- sh_functional_enrichment(data$all_genes, sel, terms, gene2name = data$gene2name)
+        fe <- fenr::functional_enrichment(data$all_genes, sel, terms, feat2name = data$gene2name)
       } else if (n > 0) {
         fe <- data.frame(Error = paste0('only ',max_points,' points can be selected.'))
       }
@@ -199,12 +209,12 @@ server <- function(input, output, session) {
 
   output$all_gene_table <- DT::renderDataTable({
     if (input$method == "tfe") {
-      d <- get_xy_data() %>%
-        select(gene_name, corTfe1,corTfe2, description) %>% 
+      d <- get_xy_data() |>
+        select(gene_symbol, corTfe1,corTfe2, description) |> 
         mutate_if(is.numeric, ~signif(.x, 3))
     } else {
-      d <- get_xy_data() %>%
-        select(gene_name, gene_biotype, logFC, FDR, description) %>% 
+      d <- get_xy_data() |>
+        select(gene_symbol, gene_biotype, logFC, FDR, description) |> 
         mutate_if(is.numeric, ~signif(.x, 3))
     }
     DT::datatable(d, class = 'cell-border strip hover', selection = "single", rownames = FALSE)

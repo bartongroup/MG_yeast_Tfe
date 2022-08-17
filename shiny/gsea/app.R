@@ -16,7 +16,7 @@ css <- "table{font-size: 11px; background-color: #EAF5FF}"
 ### Read data ###
 
 data <- sh_read_gsea_data("../data")
-initial_contrasts <- unique(data$fg$sel$go$contrast) %>% as.character()
+initial_contrasts <- unique(data$fg$sel$go$contrast) |> as.character()
 
 
 #######################################################################
@@ -27,7 +27,7 @@ ui <- shinyUI(fluidPage(
   
   titlePanel("Tfe1/Tfe2 toxin expression in yeast: gene set enrichment"),
 
-  radioButtons("terms", "Functional terms", choices = c("GO" = "go", "Reactome" = "re", "KEGG" = "kg"), inline = TRUE),
+  radioButtons("terms", "Functional terms", choices = c("GO" = "go", "Reactome" = "re", "KEGG" = "kg", "BioPlanet" = "bp"), inline = TRUE),
   radioButtons("method", "Method:", choices = c("Pairwise" = "sel", "Full model" = "fi", "Tfe correlation" = "tfe"), inline = TRUE),
   selectInput("contrast", "Contrast:", choices = initial_contrasts),
 
@@ -64,8 +64,8 @@ server <- function(input, output, session) {
   
   # Available contrasts
   get_contrasts <- function() {
-    data$fg[[input$method]][[input$terms]]$contrast %>% 
-      as.character() %>% 
+    data$fg[[input$method]][[input$terms]]$contrast |> 
+      as.character() |> 
       unique()
   }
   
@@ -78,13 +78,13 @@ server <- function(input, output, session) {
   
   get_data <- function() {
     ctr <- input$contrast
-    data$fg[[input$method]][[input$terms]] %>% 
+    data$fg[[input$method]][[input$terms]] |> 
       filter(contrast == ctr)
   }
   
   get_term_data <- function() {
     fg <- get_data()
-    fg %>% 
+    fg |> 
       filter(padj < 0.05)
   }
   
@@ -101,20 +101,19 @@ server <- function(input, output, session) {
       ctrs <- "strainTfe2"
     }
     d <- data$de[[mthd]]
-    if (filter_contrast) d <- d %>% filter(contrast == ctrs)
+    if (filter_contrast) d <- d |> filter(contrast == ctrs)
     d
   }
   
   get_gene_data <- function(trm) {
     fg <- get_data()
     de <- get_de()
-    print(de)
-    r <- fg %>% 
-      filter(term == trm)
+    r <- fg |> 
+      filter(term_id == trm)
     df <- NULL
     if (nrow(r) > 0) {
       genes <- r$leading_edge[[1]]
-      df <- de %>% 
+      df <- de |> 
         filter(gene_id %in% genes)
     }
     df
@@ -125,42 +124,42 @@ server <- function(input, output, session) {
     term_data <- get_term_data()
     tab_idx <- as.numeric(input$term_table_rows_selected)
     if (length(tab_idx) == 1) {
-      sel <- term_data[tab_idx, ] %>% pull(term)
+      sel <- term_data[tab_idx, ] |> pull(term_id)
     }
     return(sel)
   }
   
   select_gene <- function() {
     sel <- NULL
-    term <- select_term()
-    if (!is.null(term)) {
-      gene_data <- get_gene_data(term)
+    term_id <- select_term()
+    if (!is.null(term_id)) {
+      gene_data <- get_gene_data(term_id)
       tab_idx <- as.numeric(input$gene_table_rows_selected)
       if (length(tab_idx) > 0) {
         gd <- gene_data[tab_idx, ]
-        if (!is.null(gd)) sel <- gd %>% pull(gene_id)
+        if (!is.null(gd)) sel <- gd |> pull(gene_id)
       }
     }
     return(sel)
   }
 
   output$term_table <- DT::renderDataTable({
-    terms <- get_term_data() %>% 
-      select(term, term_name, NES) %>% 
-      mutate_if(is.numeric, ~signif(.x, 2)) %>% 
-      mutate(term = as.character(term))
+    terms <- get_term_data() |> 
+      select(term_id, term_name, NES) |> 
+      mutate_if(is.numeric, ~signif(.x, 2)) |> 
+      mutate(term_id = as.character(term_id))
     terms
   }, selection = "single", escape = FALSE)
   
   
   output$gene_table <- DT::renderDataTable({
-    term <- select_term()
+    term_id <- select_term()
     df <- NULL
-    if (!is.null(term)) {
-      gene_data <- get_gene_data(term)
+    if (!is.null(term_id)) {
+      gene_data <- get_gene_data(term_id)
       if (!is.null(gene_data)) {
-        df <- gene_data %>% 
-          select(gene_name, description, gene_biotype, logFC) %>% 
+        df <- gene_data |> 
+          select(gene_symbol, description, gene_biotype, logFC) |> 
           mutate_if(is.numeric, ~signif(.x, 2))
       }
     }
@@ -180,13 +179,13 @@ server <- function(input, output, session) {
     de <- get_de(filter_contrast = FALSE)
     sel <- select_gene()
     if (!is.null(sel)) {
-      d <- de %>% 
-        filter(gene_id %in% sel) %>% 
-        mutate_if(is.numeric, ~signif(.x, 2)) %>% 
+      d <- de |> 
+        filter(gene_id %in% sel) |> 
+        mutate_if(is.numeric, ~signif(.x, 2)) |> 
         select(logFC, logCPM, PValue, FDR, contrast)
-      d %>% 
-        kable("html") %>% 
-        kable_styling("striped", full_width = F) %>%
+      d |> 
+        kable("html") |> 
+        kable_styling("striped", full_width = F) |>
         row_spec(which(d$FDR < 0.05 & abs(d$logFC) > 1), bold = TRUE, background = "lightsalmon")
         
     }

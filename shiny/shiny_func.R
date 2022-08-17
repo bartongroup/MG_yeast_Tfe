@@ -1,5 +1,5 @@
 sh_plot_volcano <- function(d, alpha = 0.05, title = NULL) {
-  sres <- d %>% filter(FDR <= alpha)
+  sres <- d |> filter(FDR <= alpha)
   g <- ggplot(d, aes(x, y)) +
     theme_classic() +
     theme(
@@ -34,7 +34,7 @@ sh_plot_ma <- function(d, alpha = 0.05, title = NULL) {
 
 sh_plot_tfe <- function(d) {
   brkn <- c(0, 0.5, 0.8, 0.9, 0.95, 0.99)
-  brkn <- c(-brkn, brkn[2:length(brkn)]) %>% sort()
+  brkn <- c(-brkn, brkn[2:length(brkn)]) |> sort()
   brks <- atanh(brkn)
   ggplot(d, aes(x = x, y = y)) +
     theme_classic() +
@@ -48,31 +48,31 @@ sh_plot_tfe <- function(d) {
 
 
 sh_plot_genes <- function(set, genes, y_scale, max_points = 100, what = "count_norm") {
-  dat <- set$dat %>% 
+  dat <- set$dat |> 
     filter(gene_id %in% genes)
   n <- nrow(dat)
   if (n == 0) return(NULL)
   
-  dat <- dat %>% 
-    mutate(val = get(what)) %>% 
+  dat <- dat |> 
+    mutate(val = get(what)) |> 
     left_join(set$metadata, by = "sample")
   
   if (y_scale == "log") {
-    dat <- dat %>% 
+    dat <- dat |> 
       mutate(val = log10(val))
   }
-  d <- dat %>%
-    group_by(sample) %>% 
+  d <- dat |>
+    group_by(sample) |> 
     summarise(
       m = mean(val, na.rm = TRUE),
       se = sd(val, na.rm = TRUE) / sqrt(sum(!is.na(val))),
       group = first(group),
-      replicate = first(replicate) %>% as_factor(),
+      replicate = first(replicate) |> as_factor(),
       time = first(time),
       strain = first(strain)
-    ) %>% 
-    replace_na(list(se = 0)) %>% 
-    mutate(lo = m - se, up = m + se) %>% 
+    ) |> 
+    replace_na(list(se = 0)) |> 
+    mutate(lo = m - se, up = m + se) |> 
     mutate(shape = if_else(m == 0, 24, 21))
   
   pd <- ggplot2::position_dodge(width = 0.4)
@@ -111,80 +111,16 @@ sh_plot_genes <- function(set, genes, y_scale, max_points = 100, what = "count_n
 
 
 
-# New version, needs preparation (see above)
-sh_functional_enrichment <- function(genes_all, genes_sel, term_data, gene2name = NULL,
-                                     min_count = 2, sig_limit = 0.05) {
-  
-  # all terms present in the selection
-  terms <- term_data$gene_term %>% 
-    filter(gene_id %in% genes_sel) %>% 
-    pull(term_id) %>% 
-    unique()
-  
-  # number of selected genes
-  Nsel <- length(genes_sel)
-  # size of the universe
-  Nuni <- length(genes_all)
-  
-  # empty line for missing terms
-  na_term <- term_data$term_info[[1]] %>% mutate_all(~NA_character_)
-  
-  res <- map_dfr(terms, function(term) {
-    info <- term_data$term_info[[term]]
-    # returns NAs if no term found
-    if (nrow(info) == 0) info <- na_term %>% mutate(term_id = term)
-    
-    # all genes with the term
-    tgenes <- term_data$term2gene[[term]]
-    
-    # genes from selection with the term
-    tgenes_sel <- intersect(tgenes, genes_sel)
-    
-    nuni <- length(tgenes)
-    nsel <- length(tgenes_sel)
-    
-    expected <- nuni * Nsel / Nuni
-    # fish <- matrix(c(nsel, nuni - nsel, Nsel - nsel, Nuni + nsel - Nsel - nuni), nrow = 2)
-    # ft <- fisher.test(fish, alternative = "greater")
-    # p <- as.numeric(ft$p.value)
-    
-    # Hypergeometric function much fater than fisher.test
-    p <- 1 - phyper(nsel - 1, nuni, Nuni - nuni, Nsel)
-    
-    if (!is.null(gene2name)) tgenes_sel <- gene2name[tgenes_sel] %>% unname()
-    
-    bind_cols(
-      info,
-      tibble(
-        tot = nuni,
-        sel = nsel,
-        expect = expected,
-        enrich = nsel / expected,
-        ids = paste(tgenes_sel, collapse = ", "),
-        P = p
-      )
-    )
-  }) %>% 
-    mutate(P = p.adjust(P, method = "BH")) %>% 
-    filter(sel >= min_count & P <= sig_limit) %>% 
-    arrange(desc(enrich)) %>% 
-    mutate(enrich = round(enrich, 1), expect = round(expect, 2))
-  
-  res
-}
-
-
-
 
 
 # adds gene info and conditions to main data set
 sh_prepare_main_data <- function(data) {
-  data$dat %>%
-    left_join(bm_genes, by = "gene_id") %>%
-    left_join(meta, by = "sample") %>% 
-    mutate(group = factor(group, levels = levels(star$metadata$group))) %>% 
-    select(gene_id, gene_name, description, sample, group, replicate, count, count_norm, rpkm) %>% 
-    mutate(gene_name = if_else(is.na(gene_name), gene_id, gene_name))
+  data$dat |>
+    left_join(bm_genes, by = "gene_id") |>
+    left_join(meta, by = "sample") |> 
+    mutate(group = factor(group, levels = levels(star$metadata$group))) |> 
+    select(gene_id, gene_symbol, description, sample, group, replicate, count, count_norm, rpkm) |> 
+    mutate(gene_symbol = if_else(is.na(gene_symbol), gene_id, gene_symbol))
 }
 
 
@@ -194,14 +130,14 @@ sh_read_edger_data <- function(path) {
   star <- read_rds(file.path(path, "star.rds"))
   de <- read_rds(file.path(path, "de.rds"))
   terms <- read_rds(file.path(path, "terms.rds"))
-  tfe_cor <- read_rds(file.path(path, "tfe_cor.rds")) %>% 
+  tfe_cor <- read_rds(file.path(path, "tfe_cor.rds")) |> 
     left_join(bm_genes, by = "gene_id")
   
-  all_genes <- star$genes$gene_id %>% unique()
+  all_genes <- star$genes$gene_id |> unique()
   
   list(
     all_genes = all_genes,
-    gene2name = set_names(star$genes$gene_name, star$genes$gene_id),
+    gene2name = set_names(star$genes$gene_symbol, star$genes$gene_id),
     star = star,
     de = de,
     terms = terms,
