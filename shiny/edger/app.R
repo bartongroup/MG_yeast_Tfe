@@ -8,13 +8,8 @@ libDir <- "/cluster/gjb_lab/mgierlinski/R_shiny/library/4.1"
 
 if (dir.exists(libDir)) .libPaths(libDir)
 
-
-write(.libPaths(), stderr())
-
-
 library(scales)
 library(shiny)
-#library(shinycssloaders)
 library(tidyverse)
 library(DT)
 library(fenr)
@@ -148,9 +143,9 @@ server <- function(input, output, session) {
         filter(gene_id %in% sel) |> 
         arrange(gene_symbol)
       if (input$method == "tfe") {
-        df <- df |> select(gene_symbol, gene_biotype, description)
+        df <- df |> select(gene_id, gene_symbol, description)
       } else {
-        df <- df |> select(gene_symbol, gene_biotype, description, FDR)
+        df <- df |> select(gene_id, gene_symbol, description, FDR)
       }
     } else if (length(sel) > max_points) {
       df <- data.frame(Error = paste0('only ',max_points,' points can be selected.'))
