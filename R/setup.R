@@ -31,7 +31,7 @@ CONTRAST_SELECTION <-
     "Tfe2_30-WT_30",
     "Tfe2_60-WT_60",
     "Tfe2_60-Tfe2_0",
-    "Tfe2_30-Tfe2_60",
+    "Tfe2_30-Tfe2_0",
     "Tfe2_60-Tfe2_30",
     
     "WT_30-WT_0",
