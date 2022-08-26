@@ -559,3 +559,28 @@ plot_de_dist <- function(set, de_genes) {
     scale_y_continuous(expand = expansion(mult = c(0, 0.03))) +
     labs(x = "Mean read count across replicates", y = "Frequency")
 }
+
+
+plot_group_profiles <- function(set, groups, ncol = 3) {
+  set$dat |> 
+    mutate(gr = groups[gene_id]) |> 
+    group_by(gr, gene_id) |>
+    mutate(M = mean(rlog), rm = rlog - M) |>
+    ungroup() |> 
+    group_by(gr, sample) |>
+    summarise(m = mean(rm)) |>
+    filter(gr > 0) |> 
+    left_join(set$metadata, by = "sample") |> 
+  ggplot(aes(x = sample, y = m, colour = group)) +
+    theme_bw() +
+    theme(
+      panel.grid = element_blank(),
+      legend.position = "none",
+      axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
+    ) +
+    geom_hline(yintercept = 0, colour = "grey80") +
+    geom_segment(aes(xend = sample, yend = 0), colour = "grey80") +
+    geom_point() +
+    facet_wrap(~gr, ncol = ncol) +
+    scale_colour_manual(values = okabe_ito_palette)
+}

@@ -113,6 +113,14 @@ targets_main <- function() {
     tar_target(fig_tfe_xpt1, plot_gene_tfe(star, tfe, "YJR133W"))
   )
   
+  # weighted gene co-expression network analysis
+  wgcna <- list(
+    tar_target(co_tab, wgcna_prepare(star)),
+    tar_target(co_power, wgcna_thresholds(co_tab)),
+    tar_target(co_net, wgcna_net(co_tab, power = 12)),
+    tar_target(co_enr, wgcna_colour_enrichment(co_net, fterms, gene2name))
+  )
+  
   prepare_for_shiny <- list(
     tar_target(fg_list, add_links(fg_sel)),
     tar_target(sav_shiny, save_data_for_shiny(bm_genes, star, edger_sel, edger_fi, tfe_cor, fterms, fg_sel, fg_fi, fg_tfe))
@@ -141,6 +149,7 @@ targets_main <- function() {
     differential_expression,
     set_enrichment,
     tfe_correlation,
+    wgcna,
     prepare_for_shiny,
     make_tables,
     info
