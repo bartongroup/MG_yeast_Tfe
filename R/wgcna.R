@@ -40,7 +40,7 @@ wgcna_net <- function(tab, power, max_block_size = NULL) {
                   power = power,
                   maxBlockSize = max_block_size,
                   minModuleSize = 30,
-                  TOMType = "unsigned",
+                  TOMType = "signed",
                   reassignThreshold = 0,
                   mergeCutHeight = 0.25,
                   numericLabels = TRUE,
@@ -74,4 +74,25 @@ wgcna_colour_enrichment <- function(net, fterms, gene2name, fdr_limit = 0.05) {
       }
     })
   })
+}
+
+
+wgcna_network <- function(tab, net, gene2name) {
+  gene_ids <- colnames(tab)
+  gene_symbols <- tibble(gene_id = gene_ids) |> 
+    left_join(gene2name, by = "gene_id") |> 
+    pull(gene_symbol)
+  # adjacency matrix
+  adj_mat <- WGCNA::adjacency(tab)
+  # Useful format
+  edg <- WGCNA::exportNetworkToCytoscape(adj_mat, threshold  = 0.8, nodeNames = gene_ids, altNodeNames = gene_symbols)
+  clrs <- tibble(colour = net$colors, gene_id = names(net$colors)) |>
+    filter(colour > 0)
+  edg$edgeData |> 
+    as_tibble() |> 
+    left_join(clrs |> rename(from_colour = colour), by = c("fromNode" = "gene_id")) |>
+    left_join(clrs |> rename(to_colour = colour), by = c("toNode" = "gene_id")) |>
+    filter(from_colour == to_colour) |> 
+    rename(colour = from_colour) |> 
+    select(-to_colour)
 }

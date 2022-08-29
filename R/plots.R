@@ -584,3 +584,92 @@ plot_group_profiles <- function(set, groups, ncol = 3) {
     facet_wrap(~gr, ncol = ncol) +
     scale_colour_manual(values = okabe_ito_palette)
 }
+
+
+
+plot_clustergram <- function(enr, fdr_limit = 0.05) {
+  # different format from fgsea
+  if (!("ids") %in% names(enr)) {
+    enr <- enr |> 
+      rowwise() |> 
+      mutate(ids = str_c(leading_edge, collapse = ", "))
+  }
+  
+  d <- enr |> 
+    select(term_name, ids, p_adjust) |> 
+    filter(p_adjust < fdr_limit) |> 
+    separate_rows(ids, sep = ",\\s+")
+  
+  did <- d |>
+    group_by(ids) |> 
+    tally() |> 
+    arrange(desc(n))
+  dtm <- d |> 
+    group_by(term_name) |> 
+    tally() |> 
+    arrange(desc(n))
+  
+  divs <- seq(0.5, max(length(unique(d$term_name)), length(unique(d$ids))))
+  
+  d |> 
+    mutate(
+      x = factor(ids, levels = did$ids),
+      y = factor(term_name, levels = dtm$term_name),
+      z = factor(1)
+    ) |> 
+    ggplot(aes(x = x, y = y, fill = z)) +
+    theme_bw() +
+    theme(
+      panel.grid = element_blank(),
+      axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
+      legend.position = "none"
+    ) +
+    geom_tile() +
+    geom_vline(xintercept = divs, colour = "grey") +
+    geom_hline(yintercept = divs, colour = "grey") +
+    scale_fill_manual(values = "darkred") +
+    scale_x_discrete(expand = c(0, 0)) +
+    scale_y_discrete(expand = c(0, 0)) +
+    labs(x = NULL, y = NULL)
+}
+
+
+
+plot_network <- function(edges, clr, min_weight = 0.8) {
+  edg <- edges |> 
+    filter(colour == clr & weight > min_weight) 
+  
+  genes <- tibble(
+    gene_symbol = c(edg$fromAltName, edg$toAltName) |> 
+      unique()
+  ) |> 
+    mutate(id = seq_along(gene_symbol) - 1)
+  gene2id <- set_names(genes$id, genes$gene_symbol)
+  
+  links <- edg |> 
+    mutate(
+      source = gene2id[fromAltName],
+      target = gene2id[toAltName],
+      value =  (weight - min(weight)) / (max(weight) - min(weight))
+    ) |> 
+    select(source, target, value)
+  
+  nodes <- genes |> 
+    arrange(id) |> 
+    mutate(group = 1, size = 1)
+  
+  forceNetwork(
+    links,
+    nodes,
+    Source = "source",
+    Target = "target",
+    Value = "value",
+    NodeID = "gene_symbol",
+    Nodesize = "size",
+    Group = "group",
+    opacity = 0.9,
+    fontSize = 10,
+    opacityNoHover = 1,
+    zoom = TRUE
+  )
+}

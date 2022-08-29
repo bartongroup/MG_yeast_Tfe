@@ -118,7 +118,8 @@ targets_main <- function() {
     tar_target(co_tab, wgcna_prepare(star)),
     tar_target(co_power, wgcna_thresholds(co_tab)),
     tar_target(co_net, wgcna_net(co_tab, power = 12)),
-    tar_target(co_enr, wgcna_colour_enrichment(co_net, fterms, gene2name))
+    tar_target(co_enr, wgcna_colour_enrichment(co_net, fterms, gene2name)),
+    tar_target(co_edges, wgcna_network(co_tab, co_net, star$genes))
   )
   
   prepare_for_shiny <- list(
