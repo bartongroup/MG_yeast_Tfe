@@ -658,7 +658,7 @@ plot_network <- function(edges, clr, min_weight = 0.8) {
     arrange(id) |> 
     mutate(group = 1, size = 1)
   
-  forceNetwork(
+  networkD3::forceNetwork(
     links,
     nodes,
     Source = "source",
