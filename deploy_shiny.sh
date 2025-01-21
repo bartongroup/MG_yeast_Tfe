@@ -1,1 +1,1 @@
-rsync -rvm shiny/* rstudio:/homes/gjb-shiny-x/shiny/public/marek_yeast_tfe
+rsync -rvm shiny/* shiny:/cluster/gjb_lab/mgierlinski/ShinyApps/public/yeast_tfe

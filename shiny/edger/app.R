@@ -53,7 +53,7 @@ ui <- shinyUI(fluidPage(
           p("Gene list"),
           div(style = 'height: 200px; overflow-y: scroll', tableOutput("gene_info")),
           br(),
-          radioButtons("enrichment", "Enrichment:", choices = c("GO" = "go", "Reactome" = "re", "KEGG" = "kg", "BioPLanet" = "bp"), inline = TRUE),
+          radioButtons("enrichment", "Enrichment:", choices = c("GO" = "go", "Reactome" = "reactome", "KEGG" = "kegg"), inline = TRUE),
           div(style = 'height: 400px; overflow-y: scroll', tableOutput("enrichment")),
         )
       ),

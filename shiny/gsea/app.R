@@ -6,7 +6,7 @@ if (dir.exists(libDir)) .libPaths(libDir)
 library(shiny)
 library(tidyverse)
 library(DT)
-library(kableExtra)
+#library(kableExtra)
 source("../shiny_func.R")
 
 select <- dplyr::select
@@ -184,9 +184,9 @@ server <- function(input, output, session) {
         mutate_if(is.numeric, ~signif(.x, 2)) |> 
         select(logFC, logCPM, PValue, FDR, contrast)
       d |> 
-        kable("html") |> 
-        kable_styling("striped", full_width = F) |>
-        row_spec(which(d$FDR < 0.05 & abs(d$logFC) > 1), bold = TRUE, background = "lightsalmon")
+        knitr::kable("html") 
+        #kable_styling("striped", full_width = F) |>
+        #row_spec(which(d$FDR < 0.05 & abs(d$logFC) > 1), bold = TRUE, background = "lightsalmon")
         
     }
   }

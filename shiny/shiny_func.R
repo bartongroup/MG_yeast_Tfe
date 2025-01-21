@@ -129,7 +129,7 @@ sh_read_edger_data <- function(path) {
   bm_genes <- read_rds(file.path(path, "bm_genes.rds"))
   star <- read_rds(file.path(path, "star.rds"))
   de <- read_rds(file.path(path, "de.rds"))
-  terms <- read_rds(file.path(path, "terms.rds"))
+  terms <- read_rds(file.path(path, "fterms.rds"))
   tfe_cor <- read_rds(file.path(path, "tfe_cor.rds")) |> 
     left_join(bm_genes, by = "gene_id")
   
